@@ -51,4 +51,32 @@ describe('on-device file parsing', () => {
       ),
     ).rejects.toThrow('Macro content');
   });
+  it('rejects excessive expanded ZIP sizes before loading a workbook', async () => {
+    const archive = new JSZip();
+    archive.file('xl/workbook.xml', '<fake />');
+    archive.file('[Content_Types].xml', '<fake />');
+    const bytes = await archive.generateAsync({
+      type: 'uint8array',
+      compression: 'DEFLATE',
+    });
+    const buffer = Buffer.from(bytes),
+      signature = Buffer.from([0x50, 0x4b, 0x01, 0x02]);
+    let index = buffer.indexOf(signature);
+    while (
+      index >= 0 &&
+      buffer
+        .subarray(index + 46, index + 46 + buffer.readUInt16LE(index + 28))
+        .toString() !== 'xl/workbook.xml'
+    )
+      index = buffer.indexOf(signature, index + 4);
+    expect(index).toBeGreaterThanOrEqual(0);
+    new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setUint32(
+      index + 24,
+      60 * 1024 * 1024,
+      true,
+    );
+    await expect(
+      readImport(new File([bytes as BlobPart], 'synthetic-large.xlsx')),
+    ).rejects.toThrow('Expanded workbook');
+  });
 });

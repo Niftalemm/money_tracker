@@ -1,5 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import PdfReview from './PdfReview';
+import { parsePdf } from '@/lib/pdf-client';
+import type { PdfStatement } from '@/lib/pdf-types';
+import type { PdfProof } from '@/lib/pdf-review';
 import { Upload } from 'lucide-react';
 import Modal from './Modal';
 import { ACCOUNTS, TYPES, type Account, type TrackerState } from '@/lib/model';
@@ -45,6 +49,15 @@ export default function ImportDialog({
     signs: 'positive-purchase',
   });
   const [reviewPage, setReviewPage] = useState(0);
+  const [pdf, setPdf] = useState<PdfStatement | null>(null),
+    [proof, setProof] = useState<PdfProof | undefined>();
+  const controller = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      controller.current?.abort();
+    },
+    [],
+  );
   function mappingField(
     key:
       | 'date'
@@ -98,8 +111,9 @@ export default function ImportDialog({
           <label>
             Account
             <select
+              aria-label="Account"
               value={account}
-              disabled={Boolean(sheet)}
+              disabled={Boolean(sheet || pdf) || loading}
               onChange={(e) => setAccount(e.target.value as Account)}
             >
               {ACCOUNTS.map((a) => (
@@ -112,39 +126,73 @@ export default function ImportDialog({
             <span>
               {loading
                 ? 'Reading locally…'
-                : 'Choose CSV or XLSX · up to 10 MB'}
+                : 'Choose PDF, CSV or XLSX · up to 10 MB'}
             </span>
             <input
               aria-label="Transaction file"
               type="file"
-              accept=".csv,.xlsx"
+              accept=".pdf,.csv,.xlsx"
               disabled={loading}
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
+                controller.current?.abort();
+                const active = new AbortController();
+                controller.current = active;
                 setLoading(true);
                 setError('');
+                setSheet(null);
+                setPdf(null);
+                setProof(undefined);
                 try {
-                  setSheet(await readImport(file));
-                  setSignsConfirmed(false);
+                  if (/\.pdf$/i.test(file.name)) {
+                    const extracted = await parsePdf(
+                      file,
+                      account,
+                      active.signal,
+                    );
+                    if (!active.signal.aborted) setPdf(extracted);
+                  } else {
+                    const imported = await readImport(file);
+                    if (!active.signal.aborted) setSheet(imported);
+                  }
+                  if (!active.signal.aborted) setSignsConfirmed(false);
                 } catch (err) {
-                  setSheet(null);
-                  setError(
-                    err instanceof Error
-                      ? err.message
-                      : 'File could not be read.',
-                  );
+                  if (!active.signal.aborted)
+                    setError(
+                      err instanceof Error
+                        ? err.message
+                        : 'File could not be read.',
+                    );
                 } finally {
-                  setLoading(false);
+                  if (!active.signal.aborted) setLoading(false);
                 }
               }}
             />
           </label>
           <p className="small muted">
-            Bank export layouts need redacted sample validation. Map every file
-            explicitly. Macro workbooks and PDFs are rejected.
+            PDFs from Amex, Capital One, and Bank of America are read locally.
+            Verify every extraction against your statement. Scanned, scripted,
+            and oversized PDFs are rejected. CSV and plain XLSX remain optional.
           </p>
-          {sheet && (
+          {pdf && (
+            <PdfReview
+              statement={pdf}
+              onPrepared={({
+                sheet: prepared,
+                map: mapping,
+                proof: evidence,
+              }) => {
+                setSheet(prepared);
+                setMap(mapping);
+                setProof(evidence);
+                setRows(previewImport(prepared, mapping, account, state));
+                setReviewPage(0);
+                setError('');
+              }}
+            />
+          )}
+          {sheet && !pdf && (
             <>
               <h3>Map your export columns</h3>
               <div className="form-grid">
@@ -231,6 +279,12 @@ export default function ImportDialog({
         </>
       ) : (
         <>
+          {proof && (
+            <p className="alert">
+              PDF statement totals reconciled. Review categories and duplicates
+              before saving.
+            </p>
+          )}
           <div className="preview-summary">
             <span>{valid.length} valid rows</span>
             <span>
@@ -428,7 +482,7 @@ export default function ImportDialog({
           </div>
           <div className="modal-actions">
             <button className="secondary" onClick={() => setRows(null)}>
-              Back to mapping
+              Back to file review
             </button>
             <button
               className="primary"
@@ -441,6 +495,7 @@ export default function ImportDialog({
                       rows,
                       account,
                       coverageConfirmed ? { from, through } : undefined,
+                      proof,
                     ),
                   );
                   onClose();

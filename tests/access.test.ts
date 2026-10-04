@@ -23,6 +23,15 @@ beforeAll(async () => {
       'utf8',
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        '../supabase/migrations/202610040002_security_hardening.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  );
   await db.exec(`insert into private.owner(user_id) values ('${owner}')`);
   payload = (await createVault('synthetic access test secret', emptyState()))
     .envelope;
@@ -121,10 +130,98 @@ describe('actual migration authorization and optimistic concurrency', () => {
       db.query('select public.save_vault($1,2)', [{ transactions: [] }]),
     ).rejects.toThrow();
   });
+  it('strictly validates nested ciphertext shapes and JSON value types', async () => {
+    await identity('authenticated', owner);
+    for (const patch of [
+      { iterations: '600000' },
+      { salt: null },
+      { data: null },
+      { wrappedKey: { iv: 'AAAAAAAAAAAAAAAA', ciphertext: 'AAAA' } },
+      { data: { iv: 123, ciphertext: 'AAAAAAAAAAAAAAAAAAAAAAAA' } },
+    ]) {
+      await expect(
+        db.query('select public.save_vault($1,2)', [
+          { ...(payload as object), ...patch },
+        ]),
+      ).rejects.toThrow();
+    }
+    expect(
+      (await db.query<{ version: number }>('select version from public.vaults'))
+        .rows[0].version,
+    ).toBe(2);
+  });
+  it('RLS and trigger still enforce MFA and ownership if a write grant is accidentally added', async () => {
+    await db.exec(
+      'reset role; grant insert,update on public.vaults to authenticated;',
+    );
+    try {
+      await identity('authenticated', other);
+      await expect(
+        db.query(
+          'insert into public.vaults(owner_id,payload,version) values($1,$2,1)',
+          [other, payload],
+        ),
+      ).rejects.toThrow('NOT_AUTHORIZED');
+      await identity('authenticated', owner, 'aal1');
+      expect(
+        (
+          await db.query(
+            'update public.vaults set version=version+1 returning version',
+          )
+        ).rows,
+      ).toHaveLength(0);
+      await expect(
+        db.query(
+          'insert into public.vaults(owner_id,payload,version) values($1,$2,1)',
+          [owner, payload],
+        ),
+      ).rejects.toThrow('NOT_AUTHORIZED');
+      await identity('authenticated', owner);
+      await expect(
+        db.query('update public.vaults set version=99'),
+      ).rejects.toThrow('INVALID_VERSION');
+      await expect(
+        db.query(
+          'insert into public.vaults(owner_id,payload,version) values($1,$2,1)',
+          [other, payload],
+        ),
+      ).rejects.toThrow('NOT_AUTHORIZED');
+    } finally {
+      await db.exec(
+        'reset role; revoke insert,update on public.vaults from authenticated;',
+      );
+    }
+  });
+  it('an existing vault stays hidden after the owner loses AAL2', async () => {
+    await identity('authenticated', owner, 'aal1');
+    expect((await db.query('select * from public.vaults')).rows).toHaveLength(
+      0,
+    );
+    await expect(
+      db.query('select public.save_vault($1,2)', [payload]),
+    ).rejects.toThrow('NOT_AUTHORIZED');
+  });
   it('RLS still hides an existing vault from the second account', async () => {
     await identity('authenticated', other);
     expect((await db.query('select * from public.vaults')).rows).toHaveLength(
       0,
     );
+  });
+  it('only one of two competing device saves can advance the same version', async () => {
+    await identity('authenticated', owner);
+    const results = await Promise.allSettled([
+      db.query('select public.save_vault($1,2)', [payload]),
+      db.query('select public.save_vault($1,2)', [payload]),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    const failed = results.find(
+      (r) => r.status === 'rejected',
+    ) as PromiseRejectedResult;
+    expect(String(failed.reason)).toContain('VERSION_CONFLICT');
+    expect(
+      (await db.query<{ version: number }>('select version from public.vaults'))
+        .rows[0].version,
+    ).toBe(3);
   });
 });

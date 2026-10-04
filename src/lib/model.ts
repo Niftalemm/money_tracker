@@ -73,6 +73,24 @@ export const stateSchema = z
         importedAt: z.iso.datetime(),
         added: z.number().int(),
         duplicates: z.number().int(),
+        pdfReview: z
+          .object({
+            pages: z.number().int().min(1).max(40),
+            parserVersion: z.string().max(30),
+            reconciledAt: z.iso.datetime(),
+            groups: z
+              .array(
+                z
+                  .object({
+                    group: z.string().max(40),
+                    expectedCents: cents,
+                    actualCents: cents,
+                  })
+                  .refine((g) => g.expectedCents === g.actualCents),
+              )
+              .max(10),
+          })
+          .optional(),
       }),
     ),
     coverage: z.array(

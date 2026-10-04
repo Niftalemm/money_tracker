@@ -9,14 +9,14 @@ npm ci
 npm run dev
 ```
 
-Open http://localhost:3000 and choose **Try with fake data**. No credentials or services are needed. The demo has September and October 2026 entries across **Amex, Bank of America, and Capital One**, repeated purchases, a refund, a card payment, a shared reimbursement, bill links, and coverage. Changes remain in memory and disappear when you leave or lock. Demo records never enter a cloud vault. For file-upload practice, use the three explicitly synthetic CSVs in `tests/fixtures/` (these are normalized examples, not validated bank export layouts). Amex and Capital One use positive-purchase amounts; Bank of America uses separate debit/credit columns. In review, change the synthetic card payment to transfer and synthetic salary to income before confirming.
+Open http://localhost:3000 and choose **Try with fake data**. No credentials or services are needed. The demo has September and October 2026 entries across **Amex, Bank of America, and Capital One**, repeated purchases, a refund, a card payment, a shared reimbursement, bill links, and coverage. Changes remain in memory and disappear when you leave or lock. Demo records never enter a cloud vault. Run `npm run fake:pdf` to generate four synthetic statement PDFs in the Git-ignored `private-data/fake-statements/` directory (all three credit cards plus a BofA deposit account). Upload these in the demo and check section totals before confirming. Browser tests also generate PDFs in memory. For optional CSV practice, use the three explicitly synthetic CSVs in `tests/fixtures/` (these are normalized examples, not validated bank export layouts). Amex and Capital One use positive-purchase amounts; Bank of America uses separate debit/credit columns. In review, change the synthetic card payment to transfer and synthetic salary to income before confirming.
 
 The dashboard opens in September. Select October for equal-day comparisons and a clearly labeled early estimate. Select a category, then a merchant, for exact transactions. Use **Transactions** for filtering and corrections. **Settings** contains coverage, merchant rules, scheduled bills, import undo, and encrypted backups.
 
 ## Supabase setup — about 10 minutes
 
 1. In your own Supabase account, create one project. Keep the database password in your password manager. Choose the Free plan initially.
-2. In **SQL Editor**, run [the migration](supabase/migrations/202610040001_encrypted_vault.sql) once. It creates one encrypted vault per owner, an owner allowlist, MFA-aware row policies, and an atomic version-checked save function. Do not disable these policies.
+2. In **SQL Editor**, run [migration 1](supabase/migrations/202610040001_encrypted_vault.sql), then [migration 2](supabase/migrations/202610040002_security_hardening.sql), each once and in that order. They create one encrypted vault per owner, a single-owner allowlist, MFA-aware read/write policies, strict encrypted-envelope validation, a guard trigger, and an atomic version-checked save function. Existing installations also need migration 2. Do not disable these policies.
 3. Under **Authentication → Providers → Email**, disable **Allow new users to sign up**. Enable email/password login. There is no signup UI. Do not enable other providers.
 4. In **Authentication → Users**, add your one owner account, set a strong login password, and mark/confirm its email as appropriate for a manually created account. Copy that user's UUID. Add it to the single-owner allowlist in SQL Editor:
 
@@ -55,7 +55,15 @@ The app needs no Vercel Cron, server functions for financial data, SMTP integrat
 
 ## Imports and September coverage
 
-Use **CSV or XLSX**, one sheet, one header row, at most **10 MB**, 50,000 rows, and 60 columns. Explicitly map **posted date**, merchant/description, and amount or debit/credit. Confirm the sign convention. Optional mappings: transaction ID, pending status, and purchase date. CSV amounts use at most two decimal places. Dates use YYYY-MM-DD or MM/DD/YYYY (Excel date cells are converted to YYYY-MM-DD). Formula cells, macro file extensions, PDFs, and malformed files are rejected.
+**PDF is the primary import option for Amex, Capital One, and Bank of America.** Choose the account, then its statement PDF. PDF.js 6 performs text extraction in an isolated browser worker on your device. The original PDF is never uploaded, rendered as HTML, or sent to AI. Embedded scripting is rejected; no PDF viewer, scripting manager, links, external resources, or OCR run. The worker has a separate network-blocking CSP and is terminated on timeout, cancellation, close, or lock.
+
+Limits: **10 MB, 40 pages, 20 seconds, 2 million text characters, 100,000 text items, 25,000 lines, and 2,500 transaction rows**. Malformed, password-protected, and image-only statements are rejected. Use a smaller plain-text statement, manual entry, or a bank export when needed.
+
+Before saving, review extracted posted dates, inferred years, descriptions, amounts, sections, and types. Correct or add missing rows. Enter and reconcile every required statement-period section total, including confirmed zeros for empty sections. This review includes pre-September rows so the whole file balances; the next step excludes those rows from tracking. Missing sections, ambiguous lines, uncertain dates, and conflicting totals remain visible. Confirm all pages and date/type semantics, then review duplicates and categories. A mismatch blocks continuation. No filename, original file, account number, or raw page text is stored; the encrypted batch retains only the reconciliation evidence.
+
+The supplied Amex reference informed its profile. **Real Capital One and Bank of America layouts remain unvalidated**; synthetic credit-card and Bank of America deposit examples are tested. Unknown layouts require full manual checking, correction, and reconciliation. An unfamiliar layout can yield few/no rows; add missing rows or use a CSV export. PDF rows have no fabricated bank transaction IDs, so overlapping statements require explicit duplicate review.
+
+**CSV or XLSX is optional:** one sheet, one header row, at most 10 MB, 50,000 rows, and 60 columns. Explicitly map posted date, merchant/description, and amount or debit/credit; confirm the sign convention. Optional mappings include bank transaction ID, pending status, and purchase date. Dates use YYYY-MM-DD or MM/DD/YYYY. Formula cells, macro workbooks, external workbook links, and malformed files are rejected.
 
 Review rows and correct types/categories before confirming. Negative/credit amounts initially suggest refunds; verify income and transfers. Text suggesting a payment never automatically determines its type. Pending rows are excluded when mapped. Invalid rows explain the problem. Unknown merchants stay Uncategorized and still count.
 
@@ -84,6 +92,8 @@ Excel downloads are readable copies, generated locally after unlock, with Transa
 ## Verification
 
 ```sh
+npm run check:repo
+npm audit --audit-level=low
 npm run typecheck
 npm test
 npm run build
@@ -91,14 +101,14 @@ npx playwright install chromium
 E2E_PRODUCTION=1 npm run test:e2e
 ```
 
-Unit/integration tests cover cents, card payment exclusion, refunds/reimbursements, equal-day comparisons, coverage/estimates, imports/overlap/undo/manual matches, encryption/recovery/tampering, and Excel agreement. Access tests execute the actual migration in local PostgreSQL via PGlite using Supabase-compatible JWT helpers: anonymous, second-user, owner without MFA, owner with MFA, write grants, and version conflicts. Browser tests exercise desktop and phone layouts, import corrections/confirmation/undo, category drilldowns, and manual edits/deletion with synthetic records. Live Supabase MFA, production headers, and two actual devices still require the deployment checklist.
+Unit/integration tests cover cents, card payment exclusion, refunds/reimbursements, equal-day comparisons, coverage/estimates, imports/overlap/undo/manual matches, encryption/recovery/tampering, and Excel agreement. Access tests execute both actual migrations in local PostgreSQL via PGlite using Supabase-compatible JWT helpers: anonymous, second-user, owner without MFA, owner with MFA, write grants, and version conflicts. Browser tests exercise desktop and phone layouts, import corrections/confirmation/undo, category drilldowns, and manual edits/deletion with synthetic records. Local production headers and worker behavior are tested. Actual Supabase MFA/policies, Vercel headers, encrypted storage/recovery, and two real devices remain pending until deployment. See [the security review](docs/SECURITY_REVIEW.md) and [verification record](docs/VERIFICATION.md).
 
 ## Inputs and release gates
 
 - **Your Supabase project and owner email/user UUID**, and access through your own dashboard. Only public URL/key values go into deployment configuration. No cloud credentials were connected for this build; services cannot be configured in your accounts from this session.
 - **Your Vercel project / production URL** and your choice to merge/deploy the implementation. The repository implementation and setup instructions are provided; no live production deployment has been made.
-- **Redacted CSV/XLSX samples from all three banks**, especially Bank of America and Capital One, to validate exact headers/signs/pending status. The Amex PDF is a structural reference, not a validated posted-date import template. Keep originals and account identifiers out of source control.
-- **Confirmation of Amex detail-date semantics** (posted vs. purchase date) before direct PDF support. September needs the missing late-month posted transactions from an adjacent statement or date-range export.
+- **Redacted PDF samples from Capital One and Bank of America**, and confirmation of the exact account types (credit card or checking/savings), to validate their real layouts. Optional CSV/XLSX samples can validate export columns/signs. Keep originals and account identifiers out of source control.
+- **Confirmation of Amex detail-date semantics** (posted vs. purchase date) during PDF review. September needs the missing late-month posted transactions from an adjacent statement or date-range export.
 - **Expected statement availability day for each account**, confirmed from your statement workflow; whether optional weekly Amex notices should be enabled. Production defaults are unset/off.
 - **Your private unlock secret and offline recovery-key storage**; choose these inside the app. Never send them in chat.
 

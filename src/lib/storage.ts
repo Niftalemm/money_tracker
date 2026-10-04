@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { envelopeSchema, type Envelope } from './crypto';
+import { validatePublicConfig } from './public-config';
 let client: SupabaseClient | undefined;
 export const configured = () =>
   Boolean(
@@ -9,6 +10,10 @@ export const configured = () =>
 export function supabase() {
   if (!configured())
     throw new Error('Supabase setup is required. Try the synthetic demo.');
+  validatePublicConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+  );
   return (client ??= createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -45,6 +50,8 @@ export async function loadVault() {
     throw new Error(
       'Could not load the encrypted vault. Check Supabase setup.',
     );
+  if (data && (!Number.isSafeInteger(data.version) || data.version < 1))
+    throw new Error('Invalid vault version.');
   return data
     ? {
         envelope: envelopeSchema.parse(data.payload),
@@ -53,9 +60,16 @@ export async function loadVault() {
     : null;
 }
 export async function saveVault(envelope: Envelope, expectedVersion: number) {
+  const checked = envelopeSchema.parse(envelope);
+  if (
+    !Number.isSafeInteger(expectedVersion) ||
+    expectedVersion < 0 ||
+    expectedVersion >= 2147483647
+  )
+    throw new Error('Invalid vault version.');
   await requireOwnerSession();
   const { data, error } = await supabase().rpc('save_vault', {
-    encrypted_payload: envelope,
+    encrypted_payload: checked,
     expected_version: expectedVersion,
   });
   if (error)
@@ -64,6 +78,7 @@ export async function saveVault(envelope: Envelope, expectedVersion: number) {
         ? 'Another device changed the vault. Lock and unlock to load its latest version before trying again. Your unsaved change was not written.'
         : 'Encrypted save failed. Your change was not saved. Check your connection and access.',
     );
-  if (!Number.isSafeInteger(data)) throw new Error('Invalid server version.');
+  if (!Number.isSafeInteger(data) || data !== expectedVersion + 1)
+    throw new Error('Invalid server version.');
   return data as number;
 }

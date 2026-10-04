@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
 import {
   START,
+  TYPES,
   transactionSchema,
   uid,
   type Account,
@@ -19,6 +20,7 @@ export type Mapping = {
   id: string;
   status: string;
   purchaseDate: string;
+  type?: string;
   dateFormat: 'iso' | 'mdy';
   signs: 'positive-purchase' | 'negative-purchase' | 'debit-credit';
 };
@@ -69,7 +71,7 @@ export function validateFilename(name: string, size: number) {
   if (size > MAX_FILE) throw new Error('Files must be 10 MB or smaller.');
   if (!/\.(csv|xlsx)$/i.test(name))
     throw new Error(
-      'Choose CSV or XLSX. Macros and PDFs are not supported. PDF layouts must first be validated against redacted samples.',
+      'Choose CSV or XLSX for column mapping. Use the PDF statement workflow for PDFs. Macros are rejected.',
     );
 }
 export async function readImport(file: File): Promise<Sheet> {
@@ -87,6 +89,17 @@ export async function readImport(file: File): Promise<Sheet> {
     const { default: JSZip } = await import('jszip');
     const archive = await JSZip.loadAsync(buffer);
     const paths = Object.keys(archive.files);
+    const expandedBytes = Object.values(archive.files).reduce(
+      (total, entry) =>
+        total +
+        ((entry as unknown as { _data?: { uncompressedSize?: number } })._data
+          ?.uncompressedSize ?? 0),
+      0,
+    );
+    if (expandedBytes > 50 * 1024 * 1024)
+      throw new Error(
+        'Expanded workbook exceeds 50 MB. Use CSV or a smaller workbook.',
+      );
     if (
       paths.length > 1000 ||
       paths.some((p) => /vbaProject|macrosheets|externalLinks/i.test(p))
@@ -200,7 +213,14 @@ export function previewImport(
           (map.signs === 'negative-purchase' ? -1 : 1);
       if (signed === 0)
         throw new Error('Zero amount; no purchase or credit to import.');
-      const type: TransactionType = signed > 0 ? 'purchase' : 'refund';
+      const mappedType = map.type ? r[map.type] : undefined;
+      if (mappedType && !TYPES.includes(mappedType as TransactionType))
+        throw new Error('Invalid transaction type.');
+      const type: TransactionType = mappedType
+        ? (mappedType as TransactionType)
+        : signed > 0
+          ? 'purchase'
+          : 'refund';
       const bankId = map.id ? (r[map.id] ?? '').trim() || undefined : undefined;
       if (bankId && seenBankIds.has(bankId))
         throw new Error(
@@ -291,6 +311,7 @@ export function confirmImport(
   rows: PreviewRow[],
   account: Account,
   coverage?: { from: string; through: string },
+  pdfReview?: import('./pdf-review').PdfProof,
 ): TrackerState {
   if (rows.some((r) => r.decision === 'review'))
     throw new Error('Review all possible duplicates before confirming.');
@@ -331,6 +352,7 @@ export function confirmImport(
     importedAt: new Date().toISOString(),
     added,
     duplicates,
+    pdfReview,
   });
   if (coverage)
     next.coverage.push({

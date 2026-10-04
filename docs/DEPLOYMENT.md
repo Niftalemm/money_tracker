@@ -4,7 +4,7 @@ The repository tests use synthetic data. They do not establish that a live Supab
 
 ## Accounts and configuration
 
-- [ ] Apply the migration, disable public signup, create one confirmed owner, insert its UUID into `private.owner`, and enable TOTP MFA.
+- [ ] Apply both migrations in order, disable public signup, create one confirmed owner, insert its UUID into `private.owner`, and enable TOTP MFA.
 - [ ] Configure only the public Supabase URL/publishable key in Vercel. Confirm no service-role key, financial files, recovery key, or unlock secret appears in environment variables, git history, logs, or analytics.
 - [ ] Use an exact HTTPS production Site URL. Keep previews demo-only or on a separate test project. Enable administrator MFA for GitHub, Vercel, and Supabase.
 - [ ] Confirm current free-plan limits and eligibility. Do not activate paid plans/features without the owner's decision.
@@ -28,7 +28,7 @@ The repository tests use synthetic data. They do not establish that a live Supab
 
 ## Import/accounting workflow
 
-- [ ] Validate redacted CSV/XLSX samples from Amex, Bank of America, and Capital One. Confirm posted dates, signs, stable IDs, status values, and Excel date handling. PDFs remain blocked pending full validation and Amex date semantics.
+- [ ] Start with synthetic PDFs for Amex, Capital One, and Bank of America. Check date/section warnings, required zero totals, missing-row mismatches, correction, and final duplicate/category preview. Then validate redacted real layouts outside GitHub, especially Capital One/BofA and Amex date semantics. Optional CSV/XLSX exports require explicit column/sign mapping.
 - [ ] Import synthetic repeated purchases and overlapping/repeated files. Review uncertain matches and confirm exact counts. Existing category edits survive, manual entries are never silently merged, and undo keeps earlier/shared records.
 - [ ] Test purchase + card payment = one purchase, refunds posted in the next month, a shared reimbursement and its imported match, interest/fees, pending rows, invalid dates/amounts, and September boundaries.
 - [ ] Confirm September 1–30 coverage per account with adjacent files where needed. A September-titled statement ending earlier must remain partial. Confirm empty weeks explicitly.
@@ -41,8 +41,8 @@ The repository tests use synthetic data. They do not establish that a live Supab
 ## Production browser check
 
 - [ ] Test phone and desktop navigation, accessible chart tables, category drilldowns, quick entry, import review, corrections, deletion confirmation, and undo.
-- [ ] Inspect response headers: nonce-based CSP, frame denial, nosniff, no-referrer, HTTPS HSTS, and no-store. No third-party scripts or financial analytics should be present. Development alone may permit unsafe-eval; production must not.
+- [ ] Inspect response headers: nonce-based CSP, frame denial, nosniff, no-referrer, HTTPS HSTS, and no-store. The PDF worker response must additionally contain `connect-src 'none'` and `worker-src 'none'`. No third-party scripts or financial analytics should be present. Development alone may permit unsafe-eval; production must not.
 - [ ] Inspect browser network requests during import and edits. Original files, plaintext records, unlock secrets, and keys must never leave the browser. Auth requests contain only login/MFA material; save requests contain only ciphertext.
 - [ ] Review the tested implementation and merge/deploy it. Take an encrypted backup before later application/database changes.
 
-Monthly ChatGPT reminder: first of each month at **7 PM America/New_York**, starting **November 1, 2026**. It requests the three available bank exports and asks for later files when issued; it cannot detect uploads. No app scheduler is needed.
+Suggested monthly reminder (not created by this security work): first of each month at **7 PM America/New_York**, starting **November 1, 2026**. It requests the three available bank exports and asks for later files when issued; it cannot detect uploads. No app scheduler is needed.

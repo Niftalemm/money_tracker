@@ -11,6 +11,7 @@ export function proxy(request: NextRequest) {
     "img-src 'self' data: blob:",
     "font-src 'self'",
     `connect-src 'self' ${origin}${development ? ' ws://localhost:* ws://127.0.0.1:*' : ''}`,
+    "worker-src 'self'",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
@@ -25,5 +26,7 @@ export function proxy(request: NextRequest) {
   return response;
 }
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|pdf-import.worker.mjs).*)',
+  ],
 };

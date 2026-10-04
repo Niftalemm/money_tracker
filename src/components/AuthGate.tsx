@@ -4,6 +4,7 @@ import { ShieldCheck, Wallet, ArrowRight } from 'lucide-react';
 import { configured, loadVault, saveVault, supabase } from '@/lib/storage';
 import {
   createVault,
+  decryptState,
   encryptState,
   unlockVault,
   type Envelope,
@@ -18,11 +19,7 @@ type Context = {
   save: (next: TrackerState) => Promise<void>;
   lock: () => void;
   backup: () => void;
-  restore: (
-    envelope: Envelope,
-    key: CryptoKey,
-    state: TrackerState,
-  ) => Promise<void>;
+  restore: (envelope: Envelope, key: CryptoKey) => Promise<void>;
 };
 export default function AuthGate({
   children,
@@ -75,6 +72,10 @@ export default function AuthGate({
       if (Date.now() - lastActivity >= 10 * 60 * 1000) lock();
     };
     const reset = () => {
+      if (Date.now() - lastActivity >= 10 * 60 * 1000) {
+        lock();
+        return;
+      }
       lastActivity = Date.now();
       clearTimeout(timer);
       timer = setTimeout(check, 10 * 60 * 1000);
@@ -90,6 +91,13 @@ export default function AuthGate({
     };
   }, [phase]);
   useEffect(() => {
+    return () => {
+      generation.current++;
+      vault.current = null;
+      saving.current = false;
+    };
+  }, []);
+  useEffect(() => {
     if (!configured()) return;
     const { data } = supabase().auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
@@ -99,6 +107,11 @@ export default function AuthGate({
         setPhase('login');
         setSecret('');
         setRecovery('');
+        setPassword('');
+        setCode('');
+        setQr('');
+        setBusy(false);
+        saving.current = false;
       }
     });
     return () => data.subscription.unsubscribe();
@@ -173,6 +186,7 @@ export default function AuthGate({
     setBusy(true);
     try {
       const envelope = await encryptState(current.envelope, current.key, clean);
+      if (token !== generation.current) return;
       const version = await saveVault(envelope, current.version);
       if (token !== generation.current) return;
       vault.current = { ...current, envelope, version };
@@ -184,26 +198,25 @@ export default function AuthGate({
       }
     }
   }
-  async function restore(
-    envelope: Envelope,
-    key: CryptoKey,
-    restored: TrackerState,
-  ) {
+  async function restore(envelope: Envelope, key: CryptoKey) {
     if (saving.current) throw new Error('Wait for the current save.');
-    if (demo) {
-      setState(restored);
-      return;
-    }
-    if (!vault.current?.key) throw new Error('Unlock first.');
-    const versionBefore = vault.current.version,
-      token = generation.current;
+    if (!demo && !vault.current?.key) throw new Error('Unlock first.');
+    const token = generation.current,
+      versionBefore = vault.current?.version ?? 0;
     saving.current = true;
     setBusy(true);
     try {
+      const verifiedState = await decryptState(envelope, key);
+      if (token !== generation.current)
+        throw new Error('The workspace locked during verification.');
+      if (demo) {
+        setState(verifiedState);
+        return;
+      }
       const version = await saveVault(envelope, versionBefore);
       if (token === generation.current) {
         vault.current = { envelope, key, version };
-        setState(restored);
+        setState(verifiedState);
       }
     } finally {
       if (token === generation.current) {

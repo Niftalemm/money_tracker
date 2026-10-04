@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ShieldCheck, Download, Plus, Undo2 } from 'lucide-react';
 import { ACCOUNTS, uid, type Account, type TrackerState } from '@/lib/model';
 import { billDue, billPayment, money } from '@/lib/accounting';
@@ -13,7 +13,7 @@ type Props = {
   busy: boolean;
   save: (next: TrackerState) => Promise<void>;
   backup: () => void;
-  restore: (e: Envelope, key: CryptoKey, state: TrackerState) => Promise<void>;
+  restore: (e: Envelope, key: CryptoKey) => Promise<void>;
   onError: (s: string) => void;
 };
 export default function Settings({
@@ -48,6 +48,18 @@ export default function Settings({
     > | null>(null),
     [restoreError, setRestoreError] = useState(''),
     [checking, setChecking] = useState(false);
+  const backupGeneration = useRef(0);
+  useEffect(
+    () => () => {
+      backupGeneration.current++;
+    },
+    [],
+  );
+  function invalidateBackup() {
+    backupGeneration.current++;
+    setVerified(null);
+    setChecking(false);
+  }
   async function change(fn: (s: TrackerState) => void) {
     try {
       const next = structuredClone(state);
@@ -607,6 +619,7 @@ export default function Settings({
         <Modal
           title="Verify encrypted backup"
           onClose={() => {
+            invalidateBackup();
             setRestoring(false);
             setVerified(null);
             setBackupSecret('');
@@ -628,17 +641,24 @@ export default function Settings({
               type="file"
               accept=".json"
               onChange={async (e) => {
-                setVerified(null);
+                invalidateBackup();
+                setBackupFile(null);
+                const token = backupGeneration.current;
                 setRestoreError('');
                 const file = e.target.files?.[0];
                 if (!file) return;
                 try {
                   if (file.size > 20 * 1024 * 1024)
                     throw new Error('Backup exceeds 20 MB.');
-                  setBackupFile(JSON.parse(await file.text()));
+                  const parsed = JSON.parse(await file.text());
+                  if (token === backupGeneration.current) setBackupFile(parsed);
                 } catch {
-                  setBackupFile(null);
-                  setRestoreError('Choose a valid encrypted backup JSON file.');
+                  if (token === backupGeneration.current) {
+                    setBackupFile(null);
+                    setRestoreError(
+                      'Choose a valid encrypted backup JSON file.',
+                    );
+                  }
                 }
               }}
             />
@@ -650,14 +670,20 @@ export default function Settings({
               autoComplete="off"
               required
               value={backupSecret}
-              onChange={(e) => setBackupSecret(e.target.value)}
+              onChange={(e) => {
+                invalidateBackup();
+                setBackupSecret(e.target.value);
+              }}
             />
           </label>
           <label className="check">
             <input
               type="checkbox"
               checked={useRecovery}
-              onChange={(e) => setUseRecovery(e.target.checked)}
+              onChange={(e) => {
+                invalidateBackup();
+                setUseRecovery(e.target.checked);
+              }}
             />
             Use the offline recovery key
           </label>
@@ -665,19 +691,30 @@ export default function Settings({
             className="secondary"
             disabled={!backupFile || checking}
             onClick={async () => {
+              const token = ++backupGeneration.current;
+              setVerified(null);
               setChecking(true);
               const secret = backupSecret;
               setBackupSecret('');
               try {
-                setVerified(await unlockVault(backupFile, secret, useRecovery));
-                setRestoreError('');
-              } catch {
-                setVerified(null);
-                setRestoreError(
-                  'Backup verification failed. Check the file and unlock secret / recovery key.',
+                const result = await unlockVault(
+                  backupFile,
+                  secret,
+                  useRecovery,
                 );
+                if (token === backupGeneration.current) {
+                  setVerified(result);
+                  setRestoreError('');
+                }
+              } catch {
+                if (token === backupGeneration.current) {
+                  setVerified(null);
+                  setRestoreError(
+                    'Backup verification failed. Check the file and unlock secret / recovery key.',
+                  );
+                }
               } finally {
-                setChecking(false);
+                if (token === backupGeneration.current) setChecking(false);
               }
             }}
           >
@@ -700,11 +737,7 @@ export default function Settings({
                 disabled={busy}
                 onClick={async () => {
                   try {
-                    await restore(
-                      verified.envelope,
-                      verified.key,
-                      verified.state,
-                    );
+                    await restore(verified.envelope, verified.key);
                     setVerified(null);
                     setBackupFile(null);
                     setRestoring(false);

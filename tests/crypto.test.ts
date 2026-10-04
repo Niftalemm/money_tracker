@@ -33,3 +33,51 @@ describe('authenticated browser encryption and backup recovery', () => {
   it('does not accept a weak unlock secret', async () =>
     await expect(createVault('short', demoState())).rejects.toThrow('14'));
 });
+
+it('recovery cannot be bypassed by a new login password or tampered wrappers', async () => {
+  const state = demoState(),
+    pass = 'synthetic independent unlock secret';
+  const { envelope, key, recovery } = await createVault(pass, state);
+  expect(key.extractable).toBe(false);
+  await expect(
+    unlockVault(envelope, 'synthetic reset login password'),
+  ).rejects.toThrow();
+  await expect(unlockVault(envelope, '00'.repeat(32), true)).rejects.toThrow();
+  for (const field of ['wrappedKey', 'recoveryWrappedKey', 'data'] as const) {
+    const bad = structuredClone(envelope);
+    bad[field].iv =
+      (bad[field].iv[0] === 'A' ? 'B' : 'A') + bad[field].iv.slice(1);
+    await expect(
+      unlockVault(
+        bad,
+        field === 'recoveryWrappedKey' ? recovery : pass,
+        field === 'recoveryWrappedKey',
+      ),
+    ).rejects.toThrow();
+  }
+  const swapped = structuredClone(envelope);
+  swapped.wrappedKey = swapped.recoveryWrappedKey;
+  await expect(
+    unlockVault(swapped, recovery, true).then((result) =>
+      unlockVault(
+        { ...result.envelope, recoveryWrappedKey: envelope.wrappedKey },
+        recovery,
+        true,
+      ),
+    ),
+  ).rejects.toThrow();
+  const restored = await unlockVault(
+    JSON.parse(JSON.stringify(envelope)),
+    recovery,
+    true,
+  );
+  expect(restored.state).toEqual(state);
+  expect(restored.state.preferences).toEqual(state.preferences);
+  const changed = await encryptState(restored.envelope, restored.key, {
+    ...restored.state,
+    updatedAt: new Date().toISOString(),
+  });
+  expect((await unlockVault(changed, pass)).state.transactions).toEqual(
+    state.transactions,
+  );
+});
