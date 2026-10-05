@@ -1,0 +1,5 @@
+Posted Date,Description,Amount,Transaction ID,Status,Purchase Date
+2026-09-03,Synthetic supermarket,50.00,amex-001,Posted,2026-09-02
+2026-09-03,Synthetic supermarket,50.00,amex-002,Posted,2026-09-02
+2026-09-15,Synthetic refund,-10.00,amex-003,Posted,2026-09-10
+2026-09-30,Synthetic pending,8.00,amex-004,Pending,2026-09-30
