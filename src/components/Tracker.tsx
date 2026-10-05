@@ -99,6 +99,27 @@ function Workspace(ctx: Context) {
     [],
   );
   const dark = theme === 'dark' || (theme === 'system' && systemDark);
+  // The top bar slides away while scrolling down and returns on any scroll up.
+  const [barHidden, setBarHidden] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY,
+      frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const y = window.scrollY;
+        if (y < 64) setBarHidden(false);
+        else if (y > last + 6) setBarHidden(true);
+        else if (y < last - 6) setBarHidden(false);
+        if (Math.abs(y - last) > 6) last = y;
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, []);
   const months = trackedMonths(),
     index = months.indexOf(month);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -111,6 +132,7 @@ function Workspace(ctx: Context) {
   function go(next: View) {
     setView(next);
     setMore(false);
+    setBarHidden(false);
     window.scrollTo({ top: 0 });
   }
   const covered = ACCOUNTS.every(
@@ -122,7 +144,7 @@ function Workspace(ctx: Context) {
       : SUBTITLE[view];
   const lockLabel = demo ? 'Exit demo' : 'Lock & sign out';
   return (
-    <div className="app">
+    <div className={barHidden ? 'app bar-hidden' : 'app'}>
       <header className="topbar">
         <div className="topbar-inner">
           <button

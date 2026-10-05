@@ -238,3 +238,39 @@ test('dark mode follows the device, can be overridden, and never touches browser
   await page.getByRole('button', { name: 'Exit demo' }).click();
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
 });
+test('the top bar hides while scrolling down and returns when scrolling up', async ({
+  page,
+}) => {
+  await openView(page, 'Transactions');
+  const bar = page.locator('.topbar');
+  await page.mouse.wheel(0, 900);
+  await expect
+    .poll(() => bar.evaluate((e) => e.getBoundingClientRect().bottom))
+    .toBeLessThanOrEqual(0);
+  await page.mouse.wheel(0, -300);
+  await expect
+    .poll(() => bar.evaluate((e) => e.getBoundingClientRect().top))
+    .toBe(0);
+});
+test('detail sheets show their transactions, and taps leave no focus ring', async ({
+  page,
+}, info) => {
+  await openView(page, 'Cash flow');
+  await page.getByRole('button', { name: /^Transit, / }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(
+    dialog.getByRole('heading', { name: 'All merchants · exact transactions' }),
+  ).toBeInViewport();
+  await expect(dialog.getByText('Metro pass').last()).toBeInViewport();
+  if (info.project.name === 'phone')
+    // Full sheet: it reaches the top of the screen.
+    expect((await dialog.boundingBox())!.y).toBeLessThan(40);
+  const outline = () =>
+    page.evaluate(() => getComputedStyle(document.activeElement!).outlineStyle);
+  expect(await outline()).toBe('none');
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(dialog).toHaveCount(0);
+  // Keyboard users still see where focus is.
+  await page.keyboard.press('Tab');
+  expect(await outline()).toBe('solid');
+});

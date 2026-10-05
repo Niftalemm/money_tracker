@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/source-serif-4';
 import './globals.css';
+import InputModality from '@/components/InputModality';
 export const metadata: Metadata = {
   title: 'Money Tracker',
   description: 'Your private monthly expense tracker',
@@ -23,7 +24,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <InputModality />
+        {children}
+      </body>
     </html>
   );
 }

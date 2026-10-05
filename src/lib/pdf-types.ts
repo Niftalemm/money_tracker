@@ -18,6 +18,7 @@ export const PDF_GROUPS = [
   'interest',
   'deposits',
   'withdrawals',
+  'debit-card',
   'checks',
   'unknown',
 ] as const;
@@ -31,6 +32,7 @@ export const GROUP_LABELS: Record<PdfGroup, string> = {
   interest: 'Interest charged',
   deposits: 'Deposits / additions',
   withdrawals: 'Withdrawals / subtractions',
+  'debit-card': 'ATM and debit card',
   checks: 'Checks',
   unknown: 'Section needs review',
 };
@@ -89,11 +91,24 @@ export type PdfStatement = z.infer<typeof pdfStatementSchema>;
 export function requiredGroups(
   statement: Pick<PdfStatement, 'kind' | 'totals' | 'rows'>,
 ): PdfGroup[] {
+  const has = (group: PdfGroup) =>
+    statement.totals.some((t) => t.group === group) ||
+    statement.rows.some((r) => r.group === group);
   if (statement.kind === 'deposit')
-    return ['deposits', 'withdrawals', 'checks', 'fees'];
+    return [
+      'deposits',
+      'withdrawals',
+      ...(has('debit-card') ? (['debit-card'] as const) : []),
+      ...(has('checks') ? (['checks'] as const) : []),
+      'fees',
+    ];
+  // Amex shows a combined summary total but separate Payments/Credits detail.
   const combined =
-    statement.totals.some((t) => t.group === 'payments-and-credits') ||
-    statement.rows.some((r) => r.group === 'payments-and-credits');
+    statement.rows.some((r) => r.group === 'payments-and-credits') ||
+    (statement.totals.some((t) => t.group === 'payments-and-credits') &&
+      !statement.rows.some(
+        (r) => r.group === 'payments' || r.group === 'credits',
+      ));
   return [
     'purchases',
     ...(combined

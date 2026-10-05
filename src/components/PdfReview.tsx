@@ -23,7 +23,7 @@ const WARNINGS = {
   'missing-totals':
     'Some statement totals are missing. Enter every required total from the original on your device, including confirmed zeros.',
   'layout-unvalidated':
-    'This bank layout has only synthetic validation. Check every page and correct or add missing rows.',
+    "This statement doesn't match the known layout for the selected bank. Check every page and correct or add missing rows.",
   'no-cycle':
     'The statement period was not recognized. Check years and dates yourself.',
   'ambiguous-rows':
