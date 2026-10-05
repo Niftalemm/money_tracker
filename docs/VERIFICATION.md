@@ -4,7 +4,7 @@
 | ----------------------------------------------------- | ------------------------ |
 | TypeScript                                            | Passed                   |
 | Unit/integration tests                                | 63 passed across 9 files |
-| Desktop/phone production browser checks               | 44 passed                |
+| Desktop/phone production browser checks               | 46 passed                |
 | Next.js production build                              | Passed                   |
 | Full dependency audit, including development tools    | 0 known vulnerabilities  |
 | Repository private-file/key scan and whitespace check | Passed                   |
@@ -15,7 +15,7 @@ Web Crypto tests cover full encrypted records/settings, fresh nonces, non-extrac
 
 Production browser checks run on a fresh local Next.js production build in desktop and phone Chromium. They use only synthetic records/PDFs and exercise:
 
-- The redesigned shell: every section from the desktop sidebar and the phone tab bar/More sheet, no horizontal scrolling on any section, at least 44 × 44 px phone touch targets for navigation and page actions, bank filter chips and account shortcuts, merchant drilldowns, bounded month switching, readable validation errors, success messages, local Excel export, Escape-to-close dialogs, and the empty-vault getting-started checklist.
+- The redesigned shell: the self-hosted font and bank logos loading with no other-origin resources, every section from the desktop top navigation and the phone tab bar/More sheet, no horizontal scrolling on any section, at least 44 × 44 px phone touch targets for navigation and page actions, bank filter chips and account shortcuts, merchant drilldowns, bounded month switching, readable validation errors, success messages, local Excel export, Escape-to-close dialogs, and the empty-vault getting-started checklist.
 
 - September dashboard, all banks, categories/merchant drilldowns, monthly comparisons, entry/deletion, CSV mapping/type correction/confirmation/undo, responsive layouts, and memory-only storage.
 - The actual isolated PDF.js worker for Amex, Capital One, BofA credit card, and BofA deposit statements; whole-statement totals including August, September cutoff, payment/income types, required review, and missing-row reconciliation blocking.

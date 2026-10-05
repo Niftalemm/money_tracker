@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+// Self-hosted from node_modules: the CSP allows fonts only from this origin.
+import '@fontsource-variable/plus-jakarta-sans';
 import './globals.css';
 export const metadata: Metadata = {
   title: 'Money Tracker',
@@ -9,7 +11,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#14563f',
+  themeColor: '#312e81',
 };
 export const dynamic = 'force-dynamic';
 export default function RootLayout({

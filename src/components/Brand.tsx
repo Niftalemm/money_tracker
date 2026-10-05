@@ -13,8 +13,8 @@ export function BrandMark({ size = 32 }: { size?: number }) {
     >
       <defs>
         <linearGradient id={`bm-${id}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#2a9d6f" />
-          <stop offset="1" stopColor="#14563f" />
+          <stop offset="0" stopColor="#10b981" />
+          <stop offset="1" stopColor="#4338ca" />
         </linearGradient>
       </defs>
       <rect width="32" height="32" rx="9" fill={`url(#bm-${id})`} />
@@ -25,7 +25,7 @@ export function BrandMark({ size = 32 }: { size?: number }) {
       <path
         d="M10.6 21.4l4.3-4.3 2.6 1.9 3.6-5.2"
         fill="none"
-        stroke="#1c7352"
+        stroke="#4338ca"
         strokeWidth="1.9"
         strokeLinecap="round"
         strokeLinejoin="round"

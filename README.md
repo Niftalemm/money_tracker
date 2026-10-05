@@ -19,7 +19,7 @@ The dashboard opens in September. Use the month switcher (‹ ›) to select Oct
 - **Recurring** lists scheduled bills as _not yet recorded_ or _payment linked_ for the selected month.
 - **Settings** contains categories, merchant rules, import history/undo, and encrypted backups.
 
-On a computer, every section is in the left sidebar. On a phone, a bottom tab bar holds Dashboard, Transactions, a central **Add** button, Cash flow, and **More** (Accounts, Recurring, Settings); the lock button stays in the top bar. A new, empty vault shows a short getting-started checklist.
+On a computer, every section is in the top navigation bar, with Settings and Lock at the right. On a phone, a bottom tab bar holds Dashboard, Transactions, a central **Add** button, Cash flow, and **More** (Accounts, Recurring, Settings); the lock button stays in the top bar. A new, empty vault shows a short getting-started checklist. Text uses Plus Jakarta Sans (SIL Open Font License), installed through npm and served from the app itself; account badges are simplified, inline Amex, Bank of America, and Capital One marks, so no images or fonts load from other sites.
 
 ## Supabase setup — about 10 minutes
 

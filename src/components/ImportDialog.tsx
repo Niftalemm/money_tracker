@@ -152,16 +152,19 @@ export default function ImportDialog({
             <>
               <label className="account-select">
                 Account
-                <select
-                  aria-label="Account"
-                  value={account}
-                  disabled={loading}
-                  onChange={(e) => setAccount(e.target.value as Account)}
-                >
-                  {ACCOUNTS.map((a) => (
-                    <option key={a}>{a}</option>
-                  ))}
-                </select>
+                <span className="select-with-logo">
+                  <AccountBadge account={account} />
+                  <select
+                    aria-label="Account"
+                    value={account}
+                    disabled={loading}
+                    onChange={(e) => setAccount(e.target.value as Account)}
+                  >
+                    {ACCOUNTS.map((a) => (
+                      <option key={a}>{a}</option>
+                    ))}
+                  </select>
+                </span>
               </label>
               <div className={loading ? 'file-drop loading' : 'file-drop'}>
                 {loading ? (

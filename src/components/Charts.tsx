@@ -13,12 +13,12 @@ import {
 } from 'recharts';
 import { money } from '@/lib/accounting';
 import type { DailyPoint } from '@/lib/insights';
-const INK = '#5b6d65',
-  GRID = '#e6ece8',
-  GREEN = '#1f7a55',
-  GREEN_SOFT = '#cfe8db',
-  PRIOR = '#9aaba3',
-  INCOME = '#2a9d8f';
+const INK = '#5b6578',
+  GRID = '#eceff5',
+  PRIMARY = '#4f46e5',
+  PRIMARY_SOFT = '#e0e7ff',
+  PRIOR = '#a3acc0',
+  INCOME = '#10b981';
 // Keep a readable scale when a month has no spending yet (values are cents).
 const DOMAIN: [(min: number) => number, (max: number) => number] = [
   (min) => Math.min(0, min),
@@ -94,8 +94,8 @@ export function SpendingChart({
         >
           <defs>
             <linearGradient id="spend-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor={GREEN} stopOpacity={0.22} />
-              <stop offset="1" stopColor={GREEN} stopOpacity={0.02} />
+              <stop offset="0" stopColor={PRIMARY} stopOpacity={0.22} />
+              <stop offset="1" stopColor={PRIMARY} stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} stroke={GRID} />
@@ -139,7 +139,7 @@ export function SpendingChart({
           <Area
             type="monotone"
             dataKey="current"
-            stroke={GREEN}
+            stroke={PRIMARY}
             strokeWidth={2.5}
             fill="url(#spend-fill)"
             dot={false}
@@ -175,7 +175,7 @@ export function MonthlyChart({
             domain={DOMAIN}
           />
           <Tooltip
-            cursor={{ fill: '#f1f6f3' }}
+            cursor={{ fill: '#f3f4fb' }}
             content={(p) => (
               <Tip
                 {...(p as TipProps)}
@@ -186,15 +186,15 @@ export function MonthlyChart({
           />
           <Bar
             dataKey="actual"
-            fill={GREEN}
+            fill={PRIMARY}
             radius={[6, 6, 0, 0]}
             maxBarSize={44}
             isAnimationActive={false}
           />
           <Bar
             dataKey="estimate"
-            fill={GREEN_SOFT}
-            stroke="#6fa58b"
+            fill={PRIMARY_SOFT}
+            stroke="#818cf8"
             strokeDasharray="4 3"
             radius={[6, 6, 0, 0]}
             maxBarSize={44}
@@ -228,7 +228,7 @@ export function CashFlowChart({
             domain={DOMAIN}
           />
           <Tooltip
-            cursor={{ fill: '#f1f6f3' }}
+            cursor={{ fill: '#f3f4fb' }}
             content={(p) => (
               <Tip
                 {...(p as TipProps)}
@@ -246,7 +246,7 @@ export function CashFlowChart({
           />
           <Bar
             dataKey="spending"
-            fill={GREEN}
+            fill={PRIMARY}
             radius={[6, 6, 0, 0]}
             maxBarSize={40}
             isAnimationActive={false}

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { change, money } from '@/lib/accounting';
 import type { Account } from '@/lib/model';
+import BankLogo from './BankLogo';
 const CATEGORY_META: Record<string, [LucideIcon, string]> = {
   Groceries: [ShoppingCart, 'c-green'],
   Dining: [UtensilsCrossed, 'c-clay'],
@@ -56,22 +57,17 @@ export function CategoryIcon({
     </span>
   );
 }
-const ACCOUNT_META: Record<Account, [string, string]> = {
-  Amex: ['AX', 'acct-amex'],
-  'Bank of America': ['BA', 'acct-bofa'],
-  'Capital One': ['C1', 'acct-capone'],
-};
+const BADGE_SIZE = { xs: 14, sm: 20, md: 32, lg: 40 } as const;
 export function AccountBadge({
   account,
   size = 'md',
 }: {
   account: Account;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
 }) {
-  const [initials, tone] = ACCOUNT_META[account];
   return (
-    <span className={`acct-badge ${size} ${tone}`} aria-hidden>
-      {initials}
+    <span className={`acct-badge ${size}`} aria-hidden>
+      <BankLogo account={account} size={BADGE_SIZE[size]} />
     </span>
   );
 }

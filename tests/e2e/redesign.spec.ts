@@ -157,3 +157,24 @@ test('an empty vault shows the getting-started checklist and empty states', asyn
     page.getByText('0 of 3 accounts imported', { exact: false }),
   ).toBeVisible();
 });
+test('the font is self-hosted and bank logos render without outside requests', async ({
+  page,
+}) => {
+  await openView(page, 'Transactions');
+  await expect(
+    page.getByRole('group', { name: 'Filter account' }).locator('.bank-logo'),
+  ).toHaveCount(3);
+  expect(
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      return document.fonts.check('16px "Plus Jakarta Sans Variable"');
+    }),
+  ).toBe(true);
+  expect(
+    await page.evaluate(() =>
+      performance
+        .getEntriesByType('resource')
+        .every((e) => e.name.startsWith(location.origin)),
+    ),
+  ).toBe(true);
+});

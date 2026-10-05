@@ -3,7 +3,7 @@ import { ChevronRight, Inbox } from 'lucide-react';
 import { money, net } from '@/lib/accounting';
 import { dayGroups, shortDate } from '@/lib/insights';
 import type { Transaction } from '@/lib/model';
-import { CategoryIcon, EmptyState, MerchantAvatar } from './ui';
+import { AccountBadge, CategoryIcon, EmptyState, MerchantAvatar } from './ui';
 function typeLabel(t: Transaction) {
   if (t.reimbursementFor) return 'Matched reimbursement · excluded';
   if (t.type === 'income') return 'Income · excluded';
@@ -47,7 +47,10 @@ function Row({
               <CategoryIcon name={t.category} size="sm" />
               {t.category}
             </span>
-            <span className="tx-meta-account">{t.account}</span>
+            <span className="tx-meta-account">
+              <AccountBadge account={t.account} size="xs" />
+              {t.account}
+            </span>
             {showDate && (
               <span className="tx-meta-date">{shortDate(t.postedDate)}</span>
             )}

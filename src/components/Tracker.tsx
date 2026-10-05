@@ -97,8 +97,8 @@ function Workspace(ctx: Context) {
   const lockLabel = demo ? 'Exit demo' : 'Lock & sign out';
   return (
     <div className="app">
-      <aside className="sidebar">
-        <div className="sidebar-inner">
+      <header className="topbar">
+        <div className="topbar-inner">
           <button
             type="button"
             className="brand-button"
@@ -107,60 +107,46 @@ function Workspace(ctx: Context) {
           >
             <Brand />
           </button>
-          <nav aria-label="Main navigation" className="side-nav">
-            {NAV.map(([name, Icon]) => (
+          <nav aria-label="Main navigation" className="top-nav">
+            {NAV.map(([name]) => (
               <button
                 key={name}
                 type="button"
-                className="side-link"
+                className="top-link"
                 aria-current={view === name ? 'page' : undefined}
                 onClick={() => go(name)}
               >
-                <Icon size={18} aria-hidden />
                 {name}
               </button>
             ))}
           </nav>
-          <div className="sidebar-foot">
+          <div className="topbar-actions">
+            <span className="vault-chip">
+              <ShieldCheck size={14} aria-hidden />
+              {demo ? 'Demo · synthetic data' : 'Encrypted · auto-locks'}
+            </span>
             <button
               type="button"
-              className="side-link"
+              className="icon-button top-settings"
+              aria-label="Settings"
               aria-current={view === 'Settings' ? 'page' : undefined}
               onClick={() => go('Settings')}
             >
-              <SettingsIcon size={18} aria-hidden />
-              Settings
+              <SettingsIcon size={19} aria-hidden />
             </button>
-            <div className="vault-status">
-              <ShieldCheck size={16} aria-hidden />
-              <div>
-                <strong>{demo ? 'Demo workspace' : 'Encrypted vault'}</strong>
-                <span>
-                  {demo
-                    ? 'Synthetic data · resets on exit'
-                    : 'Locks after 10 min idle'}
-                </span>
-              </div>
-            </div>
-            <button type="button" className="side-link lock" onClick={ctx.lock}>
-              <LockKeyhole size={18} aria-hidden />
-              {lockLabel}
+            <button
+              type="button"
+              className="lock-button"
+              aria-label={lockLabel}
+              onClick={ctx.lock}
+            >
+              <LockKeyhole size={17} aria-hidden />
+              <span className="label-full">{lockLabel}</span>
             </button>
           </div>
         </div>
-      </aside>
+      </header>
       <div className="app-main">
-        <header className="mobile-bar">
-          <Brand compact />
-          <button
-            type="button"
-            className="icon-button lock-icon"
-            aria-label={lockLabel}
-            onClick={ctx.lock}
-          >
-            <LockKeyhole size={20} />
-          </button>
-        </header>
         {demo && (
           <div className="demo-banner">
             <span className="status-dot" aria-hidden />
