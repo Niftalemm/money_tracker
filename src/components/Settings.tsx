@@ -1,43 +1,56 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { ShieldCheck, Download, Plus, Undo2 } from 'lucide-react';
-import { ACCOUNTS, uid, type Account, type TrackerState } from '@/lib/model';
-import { billDue, billPayment, money } from '@/lib/accounting';
-import { parseMoney, undoImport } from '@/lib/imports';
+import {
+  Cpu,
+  Download,
+  FileCheck2,
+  History,
+  KeyRound,
+  Pencil,
+  Plus,
+  ShieldCheck,
+  Timer,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
+import type { TrackerState } from '@/lib/model';
+import { uid } from '@/lib/model';
+import { undoImport } from '@/lib/imports';
 import { unlockVault, type Envelope } from '@/lib/crypto';
 import Modal from './Modal';
+import { changer } from './change';
+import {
+  AccountBadge,
+  CardHeader,
+  CategoryIcon,
+  EmptyState,
+  Notice,
+  Spinner,
+} from './ui';
 type Props = {
   state: TrackerState;
-  month: string;
   demo: boolean;
   busy: boolean;
   save: (next: TrackerState) => Promise<void>;
   backup: () => void;
   restore: (e: Envelope, key: CryptoKey) => Promise<void>;
+  notify: (message: string) => void;
   onError: (s: string) => void;
 };
 export default function Settings({
   state,
-  month,
   demo,
   busy,
   save,
   backup,
   restore,
+  notify,
   onError,
 }: Props) {
   const [category, setCategory] = useState(''),
     [ruleMatch, setRuleMatch] = useState(''),
     [editingRule, setEditingRule] = useState<string | null>(null),
     [ruleCategory, setRuleCategory] = useState('Groceries'),
-    [coverageAccount, setCoverageAccount] = useState<Account>('Amex'),
-    [from, setFrom] = useState(month + '-01'),
-    [through, setThrough] = useState(month + '-01'),
-    [confirmed, setConfirmed] = useState(false),
-    [billName, setBillName] = useState(''),
-    [billAmount, setBillAmount] = useState(''),
-    [billCategory, setBillCategory] = useState('Housing'),
-    [dueDay, setDueDay] = useState(1),
     [undo, setUndo] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false),
     [backupFile, setBackupFile] = useState<unknown>(null),
@@ -60,197 +73,35 @@ export default function Settings({
     setVerified(null);
     setChecking(false);
   }
-  async function change(fn: (s: TrackerState) => void) {
-    try {
-      const next = structuredClone(state);
-      fn(next);
-      await save(next);
-      return true;
-    } catch (e) {
-      onError(e instanceof Error ? e.message : 'Unable to save.');
-      return false;
-    }
-  }
+  const change = changer(state, save, onError, notify);
+  const usage = (name: string) =>
+    state.transactions.filter((t) => t.category === name).length;
   return (
     <div className="settings-grid">
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Accounts &amp; update notices</h2>
-            <p className="small muted">
-              Set availability days after reviewing each bank’s sample.
-            </p>
-          </div>
-        </div>
-        {ACCOUNTS.map((account) => (
-          <label key={account} className="setting-row">
-            <span>
-              {account}
-              <span className="small muted block">
-                Expected statement availability day
-              </span>
-            </span>
-            <select
-              aria-label={`${account} statement day`}
-              value={state.preferences.statementDays[account] ?? ''}
-              disabled={busy}
-              onChange={(e) =>
-                void change((s) => {
-                  s.preferences.statementDays[account] = e.target.value
-                    ? +e.target.value
-                    : null;
-                })
-              }
-            >
-              <option value="">Not set</option>
-              {Array.from({ length: 31 }, (_, i) => (
-                <option key={i} value={i + 1}>
-                  {i + 1}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={state.preferences.weeklyAmex}
-            disabled={busy}
-            onChange={(e) =>
-              void change((s) => {
-                s.preferences.weeklyAmex = e.target.checked;
-              })
-            }
-          />
-          Enable optional seven-day Amex update notice
-        </label>
-        <p className="small muted">
-          An old upload won’t clear a notice. Coverage must advance. The monthly
-          ChatGPT reminder asks for all three banks; it cannot detect uploads.
-        </p>
-      </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Confirm date coverage</h2>
-            <p className="small muted">
-              Also confirm weeks with no new purchases.
-            </p>
-          </div>
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void change((s) => {
-              if (!confirmed || from > through)
-                throw new Error('Verify a valid date range.');
-              s.coverage.push({
-                id: uid(),
-                account: coverageAccount,
-                from,
-                through,
-                confirmedAt: new Date().toISOString(),
-              });
-            }).then((saved) => {
-              if (saved) setConfirmed(false);
-            });
-          }}
-        >
-          <label>
-            Account
-            <select
-              value={coverageAccount}
-              onChange={(e) => setCoverageAccount(e.target.value as Account)}
-            >
-              {ACCOUNTS.map((a) => (
-                <option key={a}>{a}</option>
-              ))}
-            </select>
-          </label>
-          <div className="form-grid">
-            <label>
-              From
-              <input
-                type="date"
-                min="2026-09-01"
-                required
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-              />
-            </label>
-            <label>
-              Through
-              <input
-                type="date"
-                min={from}
-                required
-                value={through}
-                onChange={(e) => setThrough(e.target.value)}
-              />
-            </label>
-          </div>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-            />
-            I verified all posted activity, including empty days.
-          </label>
-          <button className="secondary" disabled={busy || !confirmed}>
-            Save confirmed coverage
-          </button>
-        </form>
-        <details className="section-label">
-          <summary>Manage confirmed ranges ({state.coverage.length})</summary>
-          {state.coverage.map((c) => (
-            <div className="setting-row" key={c.id}>
-              <span className="small">
-                {c.account}
-                <br />
-                {c.from} – {c.through}
-              </span>
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() =>
-                  void change((s) => {
-                    s.coverage = s.coverage.filter((r) => r.id !== c.id);
-                  })
-                }
-              >
-                Remove range
-              </button>
-            </div>
-          ))}
-        </details>
-      </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Categories &amp; merchant rules</h2>
-            <p className="small muted">
-              Clear matches get a category. Everything else stays Uncategorized.
-            </p>
-          </div>
-        </div>
-        <div className="category-tags">
+      <section className="card">
+        <CardHeader
+          title="Categories"
+          subtitle="Clear matches get a category. Everything else stays Uncategorized and still counts."
+        />
+        <ul className="category-chips">
           {state.categories.map((c) => (
-            <span className="tag" key={c}>
+            <li key={c} className="category-chip">
+              <CategoryIcon name={c} size="sm" />
               {c}
-            </span>
+              <span className="count">{usage(c)}</span>
+            </li>
           ))}
-        </div>
+        </ul>
         <form
           className="inline-form"
           onSubmit={(e) => {
             e.preventDefault();
+            const name = category.trim();
             void change((s) => {
-              const name = category.trim();
               if (!name || s.categories.includes(name))
                 throw new Error('Choose a new category name.');
               s.categories.push(name);
-            }).then((saved) => {
+            }, `Category “${name}” added`).then((saved) => {
               if (saved) setCategory('');
             });
           }}
@@ -264,25 +115,33 @@ export default function Settings({
             onChange={(e) => setCategory(e.target.value)}
           />
           <button className="secondary" disabled={busy}>
-            <Plus size={15} />
+            <Plus size={15} aria-hidden />
             Add
           </button>
         </form>
-        <h3 className="section-label">Merchant rules</h3>
+      </section>
+      <section className="card">
+        <CardHeader
+          title="Merchant rules"
+          subtitle="Rules apply to new imports. Existing category edits are preserved. First matching rule wins."
+        />
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void change((s) => {
-              const id = editingRule ?? uid();
-              const rule = {
-                id,
-                match: ruleMatch.trim(),
-                category: ruleCategory,
-              };
-              if (s.rules.some((r) => r.id === id))
-                s.rules = s.rules.map((r) => (r.id === id ? rule : r));
-              else s.rules.push(rule);
-            }).then((saved) => {
+            void change(
+              (s) => {
+                const id = editingRule ?? uid();
+                const rule = {
+                  id,
+                  match: ruleMatch.trim(),
+                  category: ruleCategory,
+                };
+                if (s.rules.some((r) => r.id === id))
+                  s.rules = s.rules.map((r) => (r.id === id ? rule : r));
+                else s.rules.push(rule);
+              },
+              editingRule ? 'Merchant rule updated' : 'Merchant rule added',
+            ).then((saved) => {
               if (!saved) return;
               setRuleMatch('');
               setEditingRule(null);
@@ -312,277 +171,184 @@ export default function Settings({
               </select>
             </label>
           </div>
-          <button className="secondary" disabled={busy}>
-            {editingRule ? 'Save merchant rule' : 'Add merchant rule'}
-          </button>
-        </form>
-        <p className="small muted">
-          Rules apply to new imports. Existing category edits are preserved.
-          First matching rule wins.
-        </p>
-        {state.rules.map((rule) => (
-          <div className="rule-row" key={rule.id}>
-            <span>{rule.match}</span>
-            <select
-              aria-label={`Category rule ${rule.match}`}
-              value={rule.category}
-              disabled={busy}
-              onChange={(e) =>
-                void change((s) => {
-                  s.rules.find((r) => r.id === rule.id)!.category =
-                    e.target.value;
-                })
-              }
-            >
-              {state.categories.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-            <button
-              className="text-button"
-              disabled={busy}
-              onClick={() => {
-                setRuleMatch(rule.match);
-                setRuleCategory(rule.category);
-                setEditingRule(rule.id);
-              }}
-            >
-              Edit
-            </button>
-            <button
-              className="danger-text"
-              disabled={busy}
-              onClick={() =>
-                void change((s) => {
-                  s.rules = s.rules.filter((r) => r.id !== rule.id);
-                })
-              }
-            >
-              Remove
+          <div className="form-actions">
+            {editingRule && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setEditingRule(null);
+                  setRuleMatch('');
+                }}
+              >
+                Cancel edit
+              </button>
+            )}
+            <button className="secondary" disabled={busy}>
+              {editingRule ? 'Save merchant rule' : 'Add merchant rule'}
             </button>
           </div>
-        ))}
-      </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Scheduled bills</h2>
-            <p className="small muted">
-              Optional planning. A missing import is not a missed payment.
-            </p>
-          </div>
-        </div>
-        {state.bills.map((b) => {
-          const payment = billPayment(state, b.id, month),
-            unpaid = b.confirmedUnpaidMonths.includes(month);
-          return (
-            <div className="bill-card" key={b.id}>
-              <div className="setting-row">
-                <span>
-                  <strong>{b.name}</strong>
-                  <span className="small muted block">
-                    {money(b.amountCents)} · due {billDue(month, b.dueDay)}
-                  </span>
-                </span>
-                <span className="tag">
-                  {payment
-                    ? 'Payment linked'
-                    : unpaid
-                      ? 'Confirmed unpaid'
-                      : 'No payment recorded'}
-                </span>
-              </div>
-              {payment && payment.amountCents !== b.amountCents && (
-                <p className="small warning">
-                  Amount changed: linked payment {money(payment.amountCents)};
-                  expected {money(b.amountCents)}.
-                </p>
-              )}
-              {!payment && (
-                <label className="check small">
-                  <input
-                    type="checkbox"
-                    checked={unpaid}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void change((s) => {
-                        const bill = s.bills.find((r) => r.id === b.id)!;
-                        bill.confirmedUnpaidMonths =
-                          bill.confirmedUnpaidMonths.filter((m) => m !== month);
-                        if (e.target.checked)
-                          bill.confirmedUnpaidMonths.push(month);
-                      })
-                    }
-                  />
-                  I confirm this bill is unpaid for {month}
-                </label>
-              )}
-              <button
-                className="text-button small"
-                disabled={busy}
-                onClick={() =>
-                  void change((s) => {
-                    s.bills = s.bills.filter((r) => r.id !== b.id);
-                    s.transactions.forEach((t) => {
-                      if (t.billId === b.id) delete t.billId;
-                    });
-                  })
-                }
-              >
-                Remove bill
-              </button>
-            </div>
-          );
-        })}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void change((s) => {
-              s.bills.push({
-                id: uid(),
-                name: billName,
-                amountCents: parseMoney(billAmount),
-                category: billCategory,
-                dueDay,
-                confirmedUnpaidMonths: [],
-              });
-            }).then((saved) => {
-              if (!saved) return;
-              setBillName('');
-              setBillAmount('');
-            });
-          }}
-        >
-          <div className="form-grid">
-            <label>
-              Bill name
-              <input
-                required
-                maxLength={100}
-                value={billName}
-                onChange={(e) => setBillName(e.target.value)}
-              />
-            </label>
-            <label>
-              Amount (USD)
-              <input
-                required
-                inputMode="decimal"
-                value={billAmount}
-                onChange={(e) => setBillAmount(e.target.value)}
-              />
-            </label>
-            <label>
-              Category
-              <select
-                value={billCategory}
-                onChange={(e) => setBillCategory(e.target.value)}
-              >
-                {state.categories.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Due day
-              <input
-                type="number"
-                min="1"
-                max="31"
-                required
-                value={dueDay}
-                onChange={(e) => setDueDay(+e.target.value)}
-              />
-            </label>
-          </div>
-          <button className="secondary" disabled={busy}>
-            Add scheduled bill
-          </button>
         </form>
-        <p className="small muted">
-          Link a purchase from its edit dialog to avoid double counting. Due
-          days clamp to shorter months.
-        </p>
-      </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Import history</h2>
-            <p className="small muted">
-              Undo removes this batch’s new records and coverage. Shared and
-              manual records remain.
-            </p>
-          </div>
-          <Undo2 size={18} />
-        </div>
-        {state.batches.length ? (
-          [...state.batches].reverse().map((b) => (
-            <div className="setting-row" key={b.id}>
-              <span>
-                {b.account}
-                <span className="small muted block">
-                  {new Date(b.importedAt).toLocaleDateString('en-US', {
-                    timeZone: 'America/New_York',
-                  })}{' '}
-                  · {b.added} added · {b.duplicates} linked
-                </span>
-              </span>
-              <button
-                className="secondary"
-                disabled={busy}
-                onClick={() => setUndo(b.id)}
-              >
-                Undo
-              </button>
-            </div>
-          ))
-        ) : (
-          <p className="muted">No imports yet.</p>
+        {state.rules.length > 0 && (
+          <ul className="rule-list">
+            {state.rules.map((rule) => (
+              <li className="rule-row" key={rule.id}>
+                <span className="rule-match">“{rule.match}”</span>
+                <select
+                  aria-label={`Category rule ${rule.match}`}
+                  value={rule.category}
+                  disabled={busy}
+                  onChange={(e) =>
+                    void change((s) => {
+                      s.rules.find((r) => r.id === rule.id)!.category =
+                        e.target.value;
+                    }, 'Merchant rule updated')
+                  }
+                >
+                  {state.categories.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Edit rule ${rule.match}`}
+                  disabled={busy}
+                  onClick={() => {
+                    setRuleMatch(rule.match);
+                    setRuleCategory(rule.category);
+                    setEditingRule(rule.id);
+                  }}
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button danger-icon"
+                  aria-label={`Remove rule ${rule.match}`}
+                  disabled={busy}
+                  onClick={() =>
+                    void change((s) => {
+                      s.rules = s.rules.filter((r) => r.id !== rule.id);
+                    }, 'Merchant rule removed')
+                  }
+                >
+                  <Trash2 size={16} />
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <h2>Encryption &amp; backup</h2>
-            <p className="small muted">
-              A readable Excel export is not an encrypted backup.
-            </p>
-          </div>
-          <ShieldCheck size={20} />
+      <section className="card">
+        <CardHeader
+          title="Import history"
+          subtitle="Undo removes a batch’s new records and its coverage. Shared and manual records remain."
+          action={<History size={18} className="muted" aria-hidden />}
+        />
+        {state.batches.length ? (
+          <ul className="history-list">
+            {[...state.batches].reverse().map((b) => (
+              <li key={b.id}>
+                <AccountBadge account={b.account} size="sm" />
+                <span className="history-info">
+                  {b.account}
+                  {b.pdfReview && (
+                    <span className="history-tag">
+                      <FileCheck2 size={13} aria-hidden />
+                      PDF reconciled
+                    </span>
+                  )}
+                  <span className="history-meta">
+                    {new Date(b.importedAt).toLocaleDateString('en-US', {
+                      timeZone: 'America/New_York',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}{' '}
+                    · {b.added} added · {b.duplicates} linked
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="secondary small-button"
+                  disabled={busy}
+                  onClick={() => setUndo(b.id)}
+                >
+                  <Undo2 size={15} aria-hidden />
+                  Undo
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={History} title="No imports yet.">
+            Confirmed statement and CSV imports appear here.
+          </EmptyState>
+        )}
+      </section>
+      <section className="card">
+        <CardHeader
+          title="Encryption & backup"
+          subtitle="A readable Excel export is not an encrypted backup."
+          action={<ShieldCheck size={20} className="brand-icon" aria-hidden />}
+        />
+        <ul className="security-list">
+          <li>
+            <KeyRound size={17} aria-hidden />
+            <span>
+              <strong>Keys stay in memory</strong>
+              Never written to browser storage. Lock or sign out discards them.
+            </span>
+          </li>
+          <li>
+            <Timer size={17} aria-hidden />
+            <span>
+              <strong>Locks after 10 minutes idle</strong>
+              Including background tabs, on the first interaction after.
+            </span>
+          </li>
+          <li>
+            <Cpu size={17} aria-hidden />
+            <span>
+              <strong>Statements parsed on this device</strong>
+              PDFs never leave the browser; only ciphertext reaches the cloud.
+            </span>
+          </li>
+        </ul>
+        <div className="button-row">
+          <button
+            type="button"
+            className="primary"
+            disabled={demo || busy}
+            onClick={() => {
+              try {
+                backup();
+                notify('Encrypted backup downloaded');
+              } catch (e) {
+                onError(e instanceof Error ? e.message : 'Backup failed.');
+              }
+            }}
+          >
+            <Download size={16} aria-hidden />
+            Encrypted full backup
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={() => setRestoring(true)}
+          >
+            Verify / restore backup
+          </button>
         </div>
-        <p className="small muted">
-          Unlock keys stay in memory. The app locks after 10 minutes without
-          activity. Cloud records, settings, and import history are stored
-          together as authenticated ciphertext.
-        </p>
-        <button
-          className="secondary"
-          disabled={demo || busy}
-          onClick={() => {
-            try {
-              backup();
-            } catch (e) {
-              onError(e instanceof Error ? e.message : 'Backup failed.');
-            }
-          }}
-        >
-          <Download size={16} />
-          Encrypted full backup
-        </button>
-        <button
-          className="text-button"
-          disabled={busy}
-          onClick={() => setRestoring(true)}
-        >
-          Verify / restore backup
-        </button>
         {demo && (
-          <p className="small muted">
+          <p className="fine-print">
             The synthetic demo has no encryption key. Encrypted backups require
             a configured, unlocked owner vault.
           </p>
         )}
-        <p className="small muted">
+        <p className="fine-print">
           Store your recovery key offline. Login recovery cannot decrypt
           financial data. A compromised device or malicious application code can
           access unlocked records.
@@ -590,21 +356,27 @@ export default function Settings({
       </section>
       {undo && (
         <Modal title="Undo this import?" onClose={() => setUndo(null)}>
-          <p>
+          <p className="modal-text">
             This removes records introduced only by this batch and its confirmed
             coverage. Previously imported and manual entries remain.
           </p>
           <div className="modal-actions">
-            <button className="secondary" onClick={() => setUndo(null)}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setUndo(null)}
+            >
               Cancel
             </button>
             <button
+              type="button"
               className="danger"
               disabled={busy}
               onClick={async () => {
                 try {
                   await save(undoImport(state, undo));
                   setUndo(null);
+                  notify('Import undone');
                 } catch (e) {
                   onError(e instanceof Error ? e.message : 'Undo failed.');
                 }
@@ -618,6 +390,7 @@ export default function Settings({
       {restoring && (
         <Modal
           title="Verify encrypted backup"
+          description="Decrypt and validate locally before deciding whether to replace your vault."
           onClose={() => {
             invalidateBackup();
             setRestoring(false);
@@ -626,14 +399,10 @@ export default function Settings({
             setBackupFile(null);
           }}
         >
-          <p className="muted">
-            Decrypt and validate locally before deciding whether to replace your
-            vault.
-          </p>
           {restoreError && (
-            <p className="alert error" role="alert">
+            <Notice tone="error" role="alert">
               {restoreError}
-            </p>
+            </Notice>
           )}
           <label>
             Encrypted backup file
@@ -687,41 +456,45 @@ export default function Settings({
             />
             Use the offline recovery key
           </label>
-          <button
-            className="secondary"
-            disabled={!backupFile || checking}
-            onClick={async () => {
-              const token = ++backupGeneration.current;
-              setVerified(null);
-              setChecking(true);
-              const secret = backupSecret;
-              setBackupSecret('');
-              try {
-                const result = await unlockVault(
-                  backupFile,
-                  secret,
-                  useRecovery,
-                );
-                if (token === backupGeneration.current) {
-                  setVerified(result);
-                  setRestoreError('');
-                }
-              } catch {
-                if (token === backupGeneration.current) {
-                  setVerified(null);
-                  setRestoreError(
-                    'Backup verification failed. Check the file and unlock secret / recovery key.',
+          <div className="form-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={!backupFile || checking}
+              onClick={async () => {
+                const token = ++backupGeneration.current;
+                setVerified(null);
+                setChecking(true);
+                const secret = backupSecret;
+                setBackupSecret('');
+                try {
+                  const result = await unlockVault(
+                    backupFile,
+                    secret,
+                    useRecovery,
                   );
+                  if (token === backupGeneration.current) {
+                    setVerified(result);
+                    setRestoreError('');
+                  }
+                } catch {
+                  if (token === backupGeneration.current) {
+                    setVerified(null);
+                    setRestoreError(
+                      'Backup verification failed. Check the file and unlock secret / recovery key.',
+                    );
+                  }
+                } finally {
+                  if (token === backupGeneration.current) setChecking(false);
                 }
-              } finally {
-                if (token === backupGeneration.current) setChecking(false);
-              }
-            }}
-          >
-            {checking ? 'Verifying…' : 'Decrypt & verify locally'}
-          </button>
+              }}
+            >
+              {checking && <Spinner />}
+              {checking ? 'Verifying…' : 'Decrypt & verify locally'}
+            </button>
+          </div>
           {verified && (
-            <div className="alert success">
+            <Notice tone="success">
               <p>
                 Verified: {verified.state.transactions.length} transactions,{' '}
                 {verified.state.batches.length} imports,{' '}
@@ -733,6 +506,7 @@ export default function Settings({
                 restore. This replaces all current records and settings.
               </p>
               <button
+                type="button"
                 className="danger"
                 disabled={busy}
                 onClick={async () => {
@@ -741,6 +515,7 @@ export default function Settings({
                     setVerified(null);
                     setBackupFile(null);
                     setRestoring(false);
+                    notify('Backup restored');
                   } catch (e) {
                     setRestoreError(
                       e instanceof Error ? e.message : 'Restore failed.',
@@ -750,7 +525,7 @@ export default function Settings({
               >
                 Confirm replace with verified backup
               </button>
-            </div>
+            </Notice>
           )}
         </Modal>
       )}

@@ -4,7 +4,14 @@ import PdfReview from './PdfReview';
 import { parsePdf } from '@/lib/pdf-client';
 import type { PdfStatement } from '@/lib/pdf-types';
 import type { PdfProof } from '@/lib/pdf-review';
-import { Upload } from 'lucide-react';
+import {
+  ArrowLeft,
+  Cpu,
+  FileUp,
+  ShieldCheck,
+  TriangleAlert,
+  Upload,
+} from 'lucide-react';
 import Modal from './Modal';
 import { ACCOUNTS, TYPES, type Account, type TrackerState } from '@/lib/model';
 import {
@@ -16,15 +23,20 @@ import {
   type Sheet,
 } from '@/lib/imports';
 import { money } from '@/lib/accounting';
+import { AccountBadge, Notice, Pill, Spinner } from './ui';
+import { readableError } from './ExpenseDialog';
+const STEPS = ['Choose file', 'Review & reconcile', 'Duplicates & categories'];
 export default function ImportDialog({
   state,
   busy,
   save,
+  onSaved,
   onClose,
 }: {
   state: TrackerState;
   busy: boolean;
   save: (next: TrackerState) => Promise<void>;
+  onSaved?: (message: string) => void;
   onClose: () => void;
 }) {
   const [account, setAccount] = useState<Account>('Amex'),
@@ -51,13 +63,24 @@ export default function ImportDialog({
   const [reviewPage, setReviewPage] = useState(0);
   const [pdf, setPdf] = useState<PdfStatement | null>(null),
     [proof, setProof] = useState<PdfProof | undefined>();
-  const controller = useRef<AbortController | null>(null);
+  const controller = useRef<AbortController | null>(null),
+    fileInput = useRef<HTMLInputElement>(null);
   useEffect(
     () => () => {
       controller.current?.abort();
     },
     [],
   );
+  function reset() {
+    controller.current?.abort();
+    setLoading(false);
+    setSheet(null);
+    setPdf(null);
+    setProof(undefined);
+    setRows(null);
+    setError('');
+    if (fileInput.current) fileInput.current.value = '';
+  }
   function mappingField(
     key:
       | 'date'
@@ -96,85 +119,156 @@ export default function ImportDialog({
   }
   const valid = rows?.filter((r) => r.transaction) ?? [],
     uncertain = rows?.filter((r) => r.decision === 'review').length ?? 0;
+  const step = rows ? 2 : sheet || pdf ? 1 : 0;
   return (
-    <Modal title="Upload transactions" wide onClose={onClose}>
-      <p className="muted">
-        Files are processed on this device. Nothing is saved until you confirm.
-      </p>
+    <Modal
+      title="Upload transactions"
+      wide
+      onClose={onClose}
+      description="Files are processed on this device. Nothing is saved until you confirm."
+    >
+      <ol className="stepper" aria-label="Import progress">
+        {STEPS.map((label, i) => (
+          <li
+            key={label}
+            className={i === step ? 'current' : i < step ? 'done' : ''}
+            aria-current={i === step ? 'step' : undefined}
+          >
+            <span className="step-dot">{i + 1}</span>
+            <span className="step-label">
+              {i === 1 && sheet && !pdf ? 'Map columns' : label}
+            </span>
+          </li>
+        ))}
+      </ol>
       {error && (
-        <p className="alert error" role="alert">
+        <Notice tone="error" role="alert">
           {error}
-        </p>
+        </Notice>
       )}
       {!rows ? (
         <>
-          <label>
-            Account
-            <select
-              aria-label="Account"
-              value={account}
-              disabled={Boolean(sheet || pdf) || loading}
-              onChange={(e) => setAccount(e.target.value as Account)}
-            >
-              {ACCOUNTS.map((a) => (
-                <option key={a}>{a}</option>
-              ))}
-            </select>
-          </label>
-          <label className="file-drop">
-            <Upload size={24} />
-            <span>
-              {loading
-                ? 'Reading locally…'
-                : 'Choose PDF, CSV or XLSX · up to 10 MB'}
-            </span>
-            <input
-              aria-label="Transaction file"
-              type="file"
-              accept=".pdf,.csv,.xlsx"
-              disabled={loading}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                controller.current?.abort();
-                const active = new AbortController();
-                controller.current = active;
-                setLoading(true);
-                setError('');
-                setSheet(null);
-                setPdf(null);
-                setProof(undefined);
-                try {
-                  if (/\.pdf$/i.test(file.name)) {
-                    const extracted = await parsePdf(
-                      file,
-                      account,
-                      active.signal,
-                    );
-                    if (!active.signal.aborted) setPdf(extracted);
-                  } else {
-                    const imported = await readImport(file);
-                    if (!active.signal.aborted) setSheet(imported);
-                  }
-                  if (!active.signal.aborted) setSignsConfirmed(false);
-                } catch (err) {
-                  if (!active.signal.aborted)
-                    setError(
-                      err instanceof Error
-                        ? err.message
-                        : 'File could not be read.',
-                    );
-                } finally {
-                  if (!active.signal.aborted) setLoading(false);
-                }
-              }}
-            />
-          </label>
-          <p className="small muted">
-            PDFs from Amex, Capital One, and Bank of America are read locally.
-            Verify every extraction against your statement. Scanned, scripted,
-            and oversized PDFs are rejected. CSV and plain XLSX remain optional.
-          </p>
+          {step === 0 ? (
+            <>
+              <label className="account-select">
+                Account
+                <select
+                  aria-label="Account"
+                  value={account}
+                  disabled={loading}
+                  onChange={(e) => setAccount(e.target.value as Account)}
+                >
+                  {ACCOUNTS.map((a) => (
+                    <option key={a}>{a}</option>
+                  ))}
+                </select>
+              </label>
+              <div className={loading ? 'file-drop loading' : 'file-drop'}>
+                {loading ? (
+                  <>
+                    <Spinner />
+                    <p className="file-drop-title">
+                      Reading your {account} statement on this device…
+                    </p>
+                    <p className="file-drop-hint">
+                      Text extraction runs in an isolated worker with no network
+                      access. It stops after 20 seconds.
+                    </p>
+                    <button type="button" className="secondary" onClick={reset}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="file-drop-icon" aria-hidden>
+                      <FileUp size={24} />
+                    </span>
+                    <p className="file-drop-title">
+                      Choose a statement PDF, CSV, or XLSX
+                    </p>
+                    <p className="file-drop-hint">
+                      Drop a file here or tap to browse · up to 10 MB
+                    </p>
+                  </>
+                )}
+                <input
+                  ref={fileInput}
+                  aria-label="Transaction file"
+                  type="file"
+                  accept=".pdf,.csv,.xlsx"
+                  disabled={loading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    controller.current?.abort();
+                    const active = new AbortController();
+                    controller.current = active;
+                    setLoading(true);
+                    setError('');
+                    setSheet(null);
+                    setPdf(null);
+                    setProof(undefined);
+                    try {
+                      if (/\.pdf$/i.test(file.name)) {
+                        const extracted = await parsePdf(
+                          file,
+                          account,
+                          active.signal,
+                        );
+                        if (!active.signal.aborted) setPdf(extracted);
+                      } else {
+                        const imported = await readImport(file);
+                        if (!active.signal.aborted) setSheet(imported);
+                      }
+                      if (!active.signal.aborted) setSignsConfirmed(false);
+                    } catch (err) {
+                      if (!active.signal.aborted)
+                        setError(
+                          err instanceof Error
+                            ? err.message
+                            : 'File could not be read.',
+                        );
+                    } finally {
+                      if (!active.signal.aborted) setLoading(false);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </div>
+              <ul className="assurance-list">
+                <li>
+                  <Cpu size={16} aria-hidden />
+                  PDFs from Amex, Capital One, and Bank of America are read
+                  locally and never uploaded.
+                </li>
+                <li>
+                  <ShieldCheck size={16} aria-hidden />
+                  Scanned, scripted, password-protected, and oversized PDFs are
+                  rejected.
+                </li>
+                <li>
+                  <TriangleAlert size={16} aria-hidden />
+                  Verify every extraction against your statement. CSV and plain
+                  XLSX remain optional.
+                </li>
+              </ul>
+            </>
+          ) : (
+            <div className="import-source">
+              <AccountBadge account={account} />
+              <span>
+                <strong>{account}</strong>
+                <span>
+                  {pdf
+                    ? `Statement PDF · ${pdf.pages} ${pdf.pages === 1 ? 'page' : 'pages'}`
+                    : `Spreadsheet · ${sheet?.rows.length ?? 0} rows`}
+                </span>
+              </span>
+              <button type="button" className="text-button" onClick={reset}>
+                Choose a different file
+              </button>
+            </div>
+          )}
           {pdf && (
             <PdfReview
               statement={pdf}
@@ -194,7 +288,7 @@ export default function ImportDialog({
           )}
           {sheet && !pdf && (
             <>
-              <h3>Map your export columns</h3>
+              <h3 className="section-label">Map your export columns</h3>
               <div className="form-grid">
                 {mappingField('date', 'Posted date')}
                 {mappingField('merchant', 'Description / merchant')}
@@ -258,6 +352,7 @@ export default function ImportDialog({
               </label>
               <div className="modal-actions">
                 <button
+                  type="button"
                   className="primary"
                   disabled={!signsConfirmed}
                   onClick={() => {
@@ -265,9 +360,7 @@ export default function ImportDialog({
                       setRows(previewImport(sheet, map, account, state));
                       setError('');
                     } catch (e) {
-                      setError(
-                        e instanceof Error ? e.message : 'Check mapping.',
-                      );
+                      setError(readableError(e, 'Check mapping.'));
                     }
                   }}
                 >
@@ -280,22 +373,28 @@ export default function ImportDialog({
       ) : (
         <>
           {proof && (
-            <p className="alert">
+            <Notice tone="success">
               PDF statement totals reconciled. Review categories and duplicates
               before saving.
-            </p>
+            </Notice>
           )}
           <div className="preview-summary">
-            <span>{valid.length} valid rows</span>
             <span>
-              {rows.filter((r) => !r.transaction).length} rejected / pending
+              <strong>{valid.length}</strong> valid
             </span>
             <span>
-              {valid.filter((r) => r.matchId).length} possible duplicates
+              <strong>{rows.filter((r) => !r.transaction).length}</strong>{' '}
+              rejected / pending
             </span>
-            <span>{uncertain} need review</span>
+            <span>
+              <strong>{valid.filter((r) => r.matchId).length}</strong> possible
+              duplicates
+            </span>
+            <span className={uncertain ? 'needs' : ''}>
+              <strong>{uncertain}</strong> need review
+            </span>
           </div>
-          <p className="small muted">
+          <p className="fine-print">
             {TYPES.map(
               (type) =>
                 `${valid.filter((r) => r.transaction?.type === type).length} ${type}`,
@@ -303,15 +402,15 @@ export default function ImportDialog({
             . Credits start as refunds: verify their type. Possible payments are
             suggestions only.
           </p>
-          <div className="table-wrap import-preview">
-            <table>
+          <div className="review-table">
+            <table className="data-table cards-on-phone">
               <thead>
                 <tr>
-                  <th>Row / date</th>
-                  <th>Description / notes</th>
-                  <th>Amount</th>
-                  <th>Type / category</th>
-                  <th>Action</th>
+                  <th scope="col">Row / date</th>
+                  <th scope="col">Description / notes</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Type / category</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -320,34 +419,45 @@ export default function ImportDialog({
                   .map((r, offset) => {
                     const i = reviewPage * 50 + offset;
                     return (
-                      <tr key={i}>
-                        <td>
-                          {r.row}
-                          <span className="small muted block">
+                      <tr
+                        key={i}
+                        className={
+                          r.decision === 'review'
+                            ? 'row-review'
+                            : !r.transaction
+                              ? 'row-muted'
+                              : ''
+                        }
+                      >
+                        <td data-label="Row">
+                          <span className="row-num">Row {r.row}</span>
+                          <span className="cell-sub">
                             {r.transaction?.postedDate}
                           </span>
                         </td>
-                        <td>
-                          {r.transaction?.merchant ?? r.error}
+                        <td data-label="Description" className="cell-wide">
+                          <span className="cell-strong">
+                            {r.transaction?.merchant ?? r.error}
+                          </span>
                           {r.suggestion && (
-                            <p className="small warning">{r.suggestion}</p>
+                            <span className="cell-warn">{r.suggestion}</span>
                           )}
                           {r.matchId && (
-                            <p className="small warning">
+                            <span className="cell-warn">
                               {r.matchKind === 'stable'
                                 ? 'Same bank ID: keeps your edits.'
                                 : r.matchKind === 'manual'
                                   ? 'Possible match to manual entry. Confirm explicitly.'
                                   : 'Possible overlapping purchase. Repeated purchases are preserved unless you link or skip.'}
-                            </p>
+                            </span>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Amount" className="num">
                           {r.transaction && money(r.transaction.amountCents)}
                         </td>
-                        <td>
+                        <td data-label="Type / category">
                           {r.transaction && (
-                            <>
+                            <span className="cell-stack">
                               <select
                                 aria-label={`Type row ${r.row}`}
                                 disabled={r.matchKind === 'stable'}
@@ -383,10 +493,10 @@ export default function ImportDialog({
                                   <option key={c}>{c}</option>
                                 ))}
                               </select>
-                            </>
+                            </span>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Action">
                           {r.transaction ? (
                             <select
                               aria-label={`Action row ${r.row}`}
@@ -414,9 +524,9 @@ export default function ImportDialog({
                               <option value="skip">Skip this row</option>
                             </select>
                           ) : (
-                            <span className="tag">
+                            <Pill tone="neutral">
                               {r.pending ? 'Pending' : 'Rejected'}
-                            </span>
+                            </Pill>
                           )}
                         </td>
                       </tr>
@@ -426,16 +536,20 @@ export default function ImportDialog({
             </table>
           </div>
           {rows.length > 50 && (
-            <div className="modal-actions">
+            <div className="pager">
               <button
+                type="button"
                 className="secondary"
                 disabled={reviewPage === 0}
                 onClick={() => setReviewPage(reviewPage - 1)}
               >
                 Previous
               </button>
-              <span>Page {reviewPage + 1}</span>
+              <span>
+                Page {reviewPage + 1} of {Math.ceil(rows.length / 50)}
+              </span>
               <button
+                type="button"
                 className="secondary"
                 disabled={(reviewPage + 1) * 50 >= rows.length}
                 onClick={() => setReviewPage(reviewPage + 1)}
@@ -446,7 +560,7 @@ export default function ImportDialog({
           )}
           <div className="coverage-confirm">
             <h3>Confirm coverage only if your export is complete</h3>
-            <p className="small muted">
+            <p className="fine-print">
               A statement title or last purchase date does not prove coverage.
               September needs posted transactions for September 1–30, often from
               adjacent statements. Confirm weeks with no purchases too.
@@ -480,30 +594,47 @@ export default function ImportDialog({
               I verified all posted transactions for this account and range.
             </label>
           </div>
-          <div className="modal-actions">
-            <button className="secondary" onClick={() => setRows(null)}>
+          {uncertain > 0 && (
+            <p className="blocking-hint">
+              <TriangleAlert size={15} aria-hidden />
+              Choose an action for {uncertain} possible{' '}
+              {uncertain === 1 ? 'duplicate' : 'duplicates'} to continue.
+            </p>
+          )}
+          <div className="modal-actions sticky-actions">
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setRows(null)}
+            >
+              <ArrowLeft size={16} aria-hidden />
               Back to file review
             </button>
             <button
+              type="button"
               className="primary"
               disabled={busy || uncertain > 0}
               onClick={async () => {
                 try {
-                  await save(
-                    confirmImport(
-                      state,
-                      rows,
-                      account,
-                      coverageConfirmed ? { from, through } : undefined,
-                      proof,
-                    ),
+                  const next = confirmImport(
+                    state,
+                    rows,
+                    account,
+                    coverageConfirmed ? { from, through } : undefined,
+                    proof,
+                  );
+                  await save(next);
+                  const batch = next.batches.at(-1);
+                  onSaved?.(
+                    `${account} import saved · ${batch?.added ?? 0} added${batch?.duplicates ? `, ${batch.duplicates} linked` : ''}`,
                   );
                   onClose();
                 } catch (e) {
-                  setError(e instanceof Error ? e.message : 'Import failed.');
+                  setError(readableError(e, 'Import failed.'));
                 }
               }}
             >
+              {busy ? <Spinner /> : <Upload size={16} aria-hidden />}
               {busy ? 'Saving…' : 'Confirm import'}
             </button>
           </div>

@@ -1,6 +1,15 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { ShieldCheck, Wallet, ArrowRight } from 'lucide-react';
+import {
+  ArrowRight,
+  Cpu,
+  Download,
+  KeyRound,
+  ShieldCheck,
+  Timer,
+} from 'lucide-react';
+import Brand from './Brand';
+import { Notice, Spinner } from './ui';
 import { configured, loadVault, saveVault, supabase } from '@/lib/storage';
 import {
   createVault,
@@ -251,36 +260,98 @@ export default function AuthGate({
         })}
       </>
     );
+  const stepIndex =
+    phase === 'login' ? 0 : phase === 'mfa' ? 1 : phase === 'recovery' ? 3 : 2;
   return (
     <main className="welcome">
-      <div className="welcome-brand">
-        <span className="brand-mark">
-          <Wallet size={22} />
-        </span>{' '}
-        money tracker
-      </div>
-      <div className="welcome-grid">
-        <section>
-          <p className="eyebrow">A LITTLE CLARITY, EVERY MONTH</p>
+      <section className="welcome-hero">
+        <Brand />
+        <div className="welcome-copy">
+          <p className="welcome-kicker">Private expense tracking</p>
           <h1>
             Your money.
             <br />
             The whole picture.
           </h1>
           <p className="intro">
-            One quiet place for Amex, Bank of America, and Capital One. See the
+            One calm place for Amex, Bank of America, and Capital One. See the
             details. Know where you stand.
           </p>
-          <div className="welcome-note">
-            <ShieldCheck size={22} />
-            <p>
-              Records are encrypted on your device.
-              <br />
-              <span>Your unlock secret stays with you.</span>
-            </p>
-          </div>
-        </section>
-        <section className="auth-card">
+          <ul className="welcome-points">
+            <li>
+              <ShieldCheck size={18} aria-hidden />
+              <span>
+                <strong>Owner-only, with MFA</strong>
+                Every cloud read and write requires your verified authenticator.
+              </span>
+            </li>
+            <li>
+              <Cpu size={18} aria-hidden />
+              <span>
+                <strong>Statements stay on this device</strong>
+                PDFs are parsed locally. Records are encrypted before upload.
+              </span>
+            </li>
+            <li>
+              <Timer size={18} aria-hidden />
+              <span>
+                <strong>Locks itself</strong>
+                Keys live only in memory and clear after 10 minutes idle.
+              </span>
+            </li>
+          </ul>
+        </div>
+        <svg
+          className="welcome-art"
+          viewBox="0 0 320 120"
+          preserveAspectRatio="none"
+          aria-hidden
+          focusable="false"
+        >
+          <path
+            d="M0 96 C40 90 60 70 96 74 S150 40 186 46 S250 18 320 10 L320 120 L0 120Z"
+            fill="rgba(255,255,255,0.08)"
+          />
+          <path
+            d="M0 96 C40 90 60 70 96 74 S150 40 186 46 S250 18 320 10"
+            fill="none"
+            stroke="rgba(255,255,255,0.7)"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <path
+            d="M0 104 C50 102 80 92 120 94 S200 80 240 78 S290 70 320 66"
+            fill="none"
+            stroke="rgba(255,255,255,0.35)"
+            strokeWidth="2"
+            strokeDasharray="6 6"
+          />
+        </svg>
+      </section>
+      <section className="welcome-panel">
+        <div className="auth-card">
+          {phase !== 'login' && (
+            <ol className="auth-steps" aria-label="Sign-in progress">
+              {[
+                'Sign in',
+                'Verify',
+                phase === 'unlock' ? 'Unlock' : 'Create vault',
+                'Recovery key',
+              ]
+                .slice(0, phase === 'recovery' || phase === 'create' ? 4 : 3)
+                .map((label, i) => (
+                  <li
+                    key={label}
+                    className={
+                      i === stepIndex ? 'current' : i < stepIndex ? 'done' : ''
+                    }
+                    aria-current={i === stepIndex ? 'step' : undefined}
+                  >
+                    {label}
+                  </li>
+                ))}
+            </ol>
+          )}
           <h2>
             {phase === 'login'
               ? 'Welcome to your tracker'
@@ -292,7 +363,7 @@ export default function AuthGate({
                     ? 'Create your private vault'
                     : 'Keep your recovery key safe'}
           </h2>
-          <p className="muted">
+          <p className="auth-lead">
             {phase === 'login'
               ? 'Start with the synthetic demo, or sign in after Supabase is configured.'
               : phase === 'mfa'
@@ -302,14 +373,15 @@ export default function AuthGate({
                   : 'If you lose both your unlock secret and recovery key, your records cannot be recovered.'}
           </p>
           {error && (
-            <p className="alert error" role="alert">
+            <Notice tone="error" role="alert">
               {error}
-            </p>
+            </Notice>
           )}
           {phase === 'login' && (
             <>
               <button
-                className="primary full"
+                type="button"
+                className="primary full large"
                 onClick={() => {
                   generation.current++;
                   setDemo(true);
@@ -317,9 +389,14 @@ export default function AuthGate({
                   setPhase('open');
                 }}
               >
-                Try with fake data <ArrowRight size={17} />
+                Try with fake data <ArrowRight size={17} aria-hidden />
               </button>
-              <div className="divider">OWNER SIGN IN</div>
+              <p className="fine-print center">
+                Synthetic records only. Nothing is saved or sent anywhere.
+              </p>
+              <div className="divider">
+                <span>Owner sign in</span>
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -347,14 +424,15 @@ export default function AuthGate({
                   />
                 </label>
                 <button
-                  className="secondary full"
+                  className="secondary full large"
                   disabled={busy || !configured()}
                 >
+                  {busy && <Spinner />}
                   {busy ? 'Signing in…' : 'Sign in'}
                 </button>
               </form>
               {!configured() && (
-                <p className="small muted">
+                <p className="fine-print">
                   Cloud storage is not configured. See the repository setup
                   guide. The demo stays in memory.
                 </p>
@@ -379,31 +457,34 @@ export default function AuthGate({
               }}
             >
               {qr && (
-                <>
-                  <p>
-                    Scan with your authenticator to enroll the owner account.
-                  </p>
+                <div className="qr-block">
                   <img
                     src={qr}
                     width="180"
                     height="180"
                     alt="Authenticator enrollment QR code"
                   />
-                </>
+                  <p>
+                    Scan with your authenticator to enroll the owner account.
+                  </p>
+                </div>
               )}
               <label>
                 Authenticator code
                 <input
+                  className="code-input"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   pattern="[0-9]{6}"
+                  maxLength={6}
                   required
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                 />
               </label>
-              <button className="primary full" disabled={busy}>
-                Verify
+              <button className="primary full large" disabled={busy}>
+                {busy && <Spinner />}
+                {busy ? 'Verifying…' : 'Verify'}
               </button>
             </form>
           )}
@@ -452,7 +533,7 @@ export default function AuthGate({
                 />
               </label>
               {phase === 'create' && (
-                <p className="small muted">
+                <p className="field-hint">
                   Use at least 14 characters. Choose a long, unique passphrase.
                 </p>
               )}
@@ -466,20 +547,29 @@ export default function AuthGate({
                   Use my offline recovery key
                 </label>
               )}
-              <button className="primary full" disabled={busy}>
+              <button className="primary full large" disabled={busy}>
+                {busy ? <Spinner /> : <KeyRound size={17} aria-hidden />}
                 {busy
-                  ? 'Working…'
+                  ? phase === 'unlock'
+                    ? 'Unlocking…'
+                    : 'Creating vault…'
                   : phase === 'unlock'
                     ? 'Unlock'
                     : 'Create vault'}
               </button>
+              {busy && (
+                <p className="fine-print center" role="status">
+                  Deriving your key on this device. This can take a moment.
+                </p>
+              )}
             </form>
           )}
           {phase === 'recovery' && (
             <>
               <code className="recovery-key">{recovery}</code>
               <button
-                className="secondary full"
+                type="button"
+                className="secondary full large"
                 onClick={() =>
                   download(
                     new Blob([recovery], { type: 'text/plain' }),
@@ -487,13 +577,15 @@ export default function AuthGate({
                   )
                 }
               >
+                <Download size={17} aria-hidden />
                 Download offline recovery key
               </button>
-              <p className="small muted">
+              <p className="fine-print">
                 Store this away from the app and your account password.
               </p>
               <button
-                className="primary full"
+                type="button"
+                className="primary full large"
                 disabled={busy}
                 onClick={() =>
                   void action(async (token) => {
@@ -509,20 +601,21 @@ export default function AuthGate({
                   })
                 }
               >
-                I saved the key · verify recovery &amp; continue
+                {busy && <Spinner />}I saved the key · verify recovery &amp;
+                continue
               </button>
             </>
           )}
           {phase !== 'login' && (
-            <button className="text-button full" onClick={lock}>
+            <button type="button" className="text-button full" onClick={lock}>
               Back to sign in
             </button>
           )}
-        </section>
-      </div>
-      <p className="welcome-footer">
-        USD · America/New_York · Tracking from September 2026
-      </p>
+        </div>
+        <p className="welcome-footer">
+          USD · America/New_York · Tracking from September 2026
+        </p>
+      </section>
     </main>
   );
 }

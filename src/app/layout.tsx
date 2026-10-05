@@ -1,9 +1,15 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 export const metadata: Metadata = {
   title: 'Money Tracker',
   description: 'Your private monthly expense tracker',
   robots: { index: false, follow: false },
+};
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#14563f',
 };
 export const dynamic = 'force-dynamic';
 export default function RootLayout({

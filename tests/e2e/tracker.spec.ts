@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openView } from './helpers';
 import { demoState } from '../../src/lib/demo';
 import { money, monthTransactions, total } from '../../src/lib/accounting';
 const initial = total(monthTransactions(demoState(), '2026-09'));
@@ -80,7 +81,7 @@ test('imports require mapping and confirmation; payment correction and undo pres
   await expect(page.getByTestId('net-spending')).toHaveText(
     money(initial + 2500),
   );
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openView(page, 'Settings');
   await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
   await page.getByRole('button', { name: 'Confirm undo' }).click();
   await page.getByRole('button', { name: 'Dashboard', exact: true }).click();

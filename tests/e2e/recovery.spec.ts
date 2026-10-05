@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openView } from './helpers';
 import { createVault } from '../../src/lib/crypto';
 import { demoState } from '../../src/lib/demo';
 import { money, monthTransactions, total } from '../../src/lib/accounting';
@@ -17,7 +18,7 @@ test('encrypted backup verifies and restores in the browser with offline recover
   });
   await page.goto('/');
   await page.getByRole('button', { name: 'Try with fake data' }).click();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openView(page, 'Settings');
   await page.getByRole('button', { name: 'Verify / restore backup' }).click();
   const file = page.getByLabel('Encrypted backup file');
   const secret = page.getByLabel('Backup unlock secret / recovery key');
@@ -72,7 +73,7 @@ test('closing during backup verification never revives a plaintext preview', asy
   const { envelope } = await createVault(pass, demoState());
   await page.goto('/');
   await page.getByRole('button', { name: 'Try with fake data' }).click();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openView(page, 'Settings');
   await page.getByRole('button', { name: 'Verify / restore backup' }).click();
   await page
     .getByLabel('Encrypted backup file')
