@@ -13,7 +13,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run check:repo
       - run: npm audit --audit-level=low
       - run: npm run typecheck

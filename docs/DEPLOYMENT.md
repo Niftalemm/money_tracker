@@ -5,6 +5,7 @@ The repository tests use synthetic data. They do not establish that a live Supab
 ## Accounts and configuration
 
 - [ ] Apply both migrations in order, disable public signup, create one confirmed owner, insert its UUID into `private.owner`, and enable TOTP MFA.
+- [ ] Set Vercel Node to 24.x, framework to Next.js, install command to `npm ci --include=dev`, and build command to `npm run build`. Build tools include esbuild for the local PDF worker; keep development dependencies available during the build.
 - [ ] Configure only the public Supabase URL/publishable key in Vercel. Confirm no service-role key, financial files, recovery key, or unlock secret appears in environment variables, git history, logs, or analytics.
 - [ ] Use an exact HTTPS production Site URL. Keep previews demo-only or on a separate test project. Enable administrator MFA for GitHub, Vercel, and Supabase.
 - [ ] Confirm current free-plan limits and eligibility. Do not activate paid plans/features without the owner's decision.
