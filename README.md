@@ -5,7 +5,7 @@ A lightweight, private expense tracker: **Dashboard, Transactions, Settings**. O
 ## Try fake data first
 
 ```sh
-npm ci
+npm ci --include=dev
 npm run dev
 ```
 
@@ -45,7 +45,7 @@ The Supabase SQL Editor and dashboard are administrator tools and can see your a
 ## Vercel setup
 
 1. Import **Niftalemm/money_tracker** into your own Vercel account. Use the reviewed implementation branch or merge its pull request first.
-2. Select the **Next.js** framework, repository root directory, and Node **24.x** (22.x also works). Install: `npm ci`; build: `npm run build`. Leave output directory automatic.
+2. Select the **Next.js** framework, repository root directory, and Node **24.x** (the tested major is pinned in `package.json`). Install: `npm ci --include=dev`; build: `npm run build`. Leave output directory automatic. `vercel.json` also supplies the framework, install, and build commands, including the tools needed to build the isolated PDF worker.
 3. Add the two variables above to the Production environment. For previews, use a separate Supabase project with fake data; otherwise leave preview variables unset so previews remain demo-only.
 4. Deploy. In **Supabase Authentication → URL Configuration**, set **Site URL** to the HTTPS Vercel production URL. Add only your exact production URL and localhost development URL to redirect URLs if you use dashboard-issued password reset/invitation links. Login here is email/password plus TOTP, with no OAuth redirect flow or in-app reset screen.
 5. Enable MFA on Supabase, Vercel, and GitHub administrative accounts. Restrict repository/deployment write access. Review dependency changes before shipping code that can access an unlocked vault.
