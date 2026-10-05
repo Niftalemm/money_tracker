@@ -447,3 +447,29 @@ export function undoImport(state: TrackerState, batchId: string): TrackerState {
   next.batches = next.batches.filter((b) => b.id !== batchId);
   return next;
 }
+/** Coverage to suggest after a preview: the statement period when known,
+ * otherwise the file's posted-date range, never before tracking starts. */
+export function suggestedCoverage(
+  rows: PreviewRow[],
+  period?: { from?: string; through?: string },
+) {
+  const dates = rows
+    .map((r) => r.transaction?.postedDate)
+    .filter((d): d is string => !!d)
+    .sort();
+  const from = period?.from ?? dates[0],
+    through = period?.through ?? dates.at(-1);
+  const beforeTracking =
+    !rows.some((r) => r.transaction) &&
+    (through
+      ? through < START
+      : rows.some((r) => r.error?.startsWith('Before September 1')));
+  return {
+    beforeTracking,
+    period: period?.through
+      ? { from: period.from, through: period.through }
+      : undefined,
+    from: !from || from < START ? START : from,
+    through: !through || through < START ? START : through,
+  };
+}

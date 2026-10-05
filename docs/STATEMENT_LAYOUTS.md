@@ -6,7 +6,7 @@ All three files were plain text PDFs with no JavaScript, forms, automatic action
 
 ## Amex
 
-- Header: **Closing Date MM/DD/YY**; "Days in Billing Period" appears later. No explicit statement range.
+- Header: **Closing Date MM/DD/YY**; "Days in Billing Period: N" appears later. The period start is the closing date minus N − 1 days (a second Amex statement, May–June, confirmed this and reconciled every section).
 - **Payments and Credits → Summary** (Payments, Credits, Total) then **Detail**; **New Charges → Summary / Detail**, continued across pages; then **Fees** and **Interest Charged** totals.
 - The detail legend reads "*Indicates posting date": a date followed by `*` (payments) is a posting date. Charge dates have no mark, so they may be transaction dates and stay flagged for owner review.
 - The combined "Total Payments and Credits" is not required when payments and credits are reconciled separately.

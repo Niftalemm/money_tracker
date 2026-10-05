@@ -236,6 +236,19 @@ export function adaptPdf(
       if (dates.length > 1) cycleFrom = dates[0];
     }
   }
+  // Amex gives only a closing date plus "Days in Billing Period: 30".
+  if (cycleThrough && !cycleFrom) {
+    const days = lines
+      .map((l) =>
+        /days in billing (?:period|cycle):?\s*(\d{1,2})\b/i.exec(l.text),
+      )
+      .find(Boolean);
+    if (days && +days[1] >= 20 && +days[1] <= 35) {
+      const start = new Date(cycleThrough + 'T12:00:00Z');
+      start.setUTCDate(start.getUTCDate() - (+days[1] - 1));
+      cycleFrom = start.toISOString().slice(0, 10);
+    }
+  }
   const rows: PdfRow[] = [],
     totals: PdfStatement['totals'] = [];
   let section: PdfGroup = 'unknown',

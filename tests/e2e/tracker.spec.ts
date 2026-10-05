@@ -170,3 +170,40 @@ test('a purchase you entered is matched to its later statement line instead of c
     money(initial + 650),
   );
 });
+test('coverage dates come from the file, and a file from before tracking says so', async ({
+  page,
+}) => {
+  const upload = async (csv: string) => {
+    await page.getByRole('button', { name: 'Upload transactions' }).click();
+    await page.getByLabel('Transaction file').setInputFiles({
+      name: 'synthetic.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+    await page.getByLabel('Posted date', { exact: true }).selectOption('Date');
+    await page
+      .getByLabel('Description / merchant', { exact: true })
+      .selectOption('Description');
+    await page.getByLabel('Amount', { exact: true }).selectOption('Amount');
+    await page.getByLabel('I checked my export').check();
+    await page.getByRole('button', { name: /^Review \d+ rows?$/ }).click();
+  };
+  await upload(
+    'Date,Description,Amount\n2026-09-03,Synthetic shop,5.00\n2026-09-12,Synthetic cafe,4.00',
+  );
+  await expect(page.getByLabel('Covered from')).toHaveValue('2026-09-03');
+  await expect(page.getByLabel('Covered through')).toHaveValue('2026-09-12');
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await upload(
+    'Date,Description,Amount\n2026-05-28,Synthetic shop,5.00\n2026-06-20,Synthetic cafe,4.00',
+  );
+  await expect(
+    page.getByText(
+      'Tracking starts September 1, 2026, so nothing from it is added.',
+    ),
+  ).toBeVisible();
+  await expect(page.getByLabel('Covered from')).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Confirm import' }),
+  ).toBeDisabled();
+});

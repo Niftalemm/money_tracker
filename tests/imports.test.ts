@@ -5,6 +5,7 @@ import {
   parseMoney,
   previewImport,
   similarMerchant,
+  suggestedCoverage,
   undoImport,
   validateFilename,
   type Mapping,
@@ -330,6 +331,44 @@ describe('import and deduplication', () => {
         s,
       );
       expect(p[0].matchKind).toBe('manual');
+    });
+  });
+  describe('suggested coverage after a preview', () => {
+    const rows = (dates: string[]) =>
+      previewImport(
+        sheet(dates.map((d) => [d, 'Shop', '5'])),
+        mapping,
+        'Amex',
+        emptyState(),
+      );
+    it('uses the statement period, starting no earlier than tracking', () => {
+      expect(
+        suggestedCoverage(rows(['2026-09-03']), {
+          from: '2026-08-25',
+          through: '2026-09-23',
+        }),
+      ).toMatchObject({
+        beforeTracking: false,
+        from: '2026-09-01',
+        through: '2026-09-23',
+      });
+    });
+    it("falls back to the file's posted dates", () => {
+      expect(
+        suggestedCoverage(rows(['2026-09-12', '2026-09-03', '2026-08-30'])),
+      ).toMatchObject({ from: '2026-09-03', through: '2026-09-12' });
+    });
+    it('says so when a whole statement is before tracking starts', () => {
+      expect(
+        suggestedCoverage(rows(['2026-05-28', '2026-06-20']), {
+          from: '2026-05-25',
+          through: '2026-06-23',
+        }),
+      ).toMatchObject({
+        beforeTracking: true,
+        period: { from: '2026-05-25', through: '2026-06-23' },
+      });
+      expect(suggestedCoverage(rows(['2026-06-01'])).beforeTracking).toBe(true);
     });
   });
 });

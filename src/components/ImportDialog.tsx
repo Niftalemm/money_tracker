@@ -13,11 +13,18 @@ import {
   Upload,
 } from 'lucide-react';
 import Modal from './Modal';
-import { ACCOUNTS, TYPES, type Account, type TrackerState } from '@/lib/model';
+import {
+  ACCOUNTS,
+  START,
+  TYPES,
+  type Account,
+  type TrackerState,
+} from '@/lib/model';
 import {
   confirmImport,
   previewImport,
   readImport,
+  suggestedCoverage,
   type Mapping,
   type PreviewRow,
   type Sheet,
@@ -48,7 +55,22 @@ export default function ImportDialog({
     [signsConfirmed, setSignsConfirmed] = useState(false),
     [coverageConfirmed, setCoverageConfirmed] = useState(false),
     [from, setFrom] = useState('2026-09-01'),
-    [through, setThrough] = useState('2026-09-30');
+    [through, setThrough] = useState('2026-09-30'),
+    [coverage, setCoverage] = useState<ReturnType<
+      typeof suggestedCoverage
+    > | null>(null);
+  // Fill the coverage range from the statement period (or the file's dates).
+  function showRows(next: PreviewRow[], period?: PdfStatement) {
+    const suggestion = suggestedCoverage(
+      next,
+      period && { from: period.cycleFrom, through: period.cycleThrough },
+    );
+    setRows(next);
+    setCoverage(suggestion);
+    setFrom(suggestion.from);
+    setThrough(suggestion.through);
+    setCoverageConfirmed(false);
+  }
   const [map, setMap] = useState<Mapping>({
     date: '',
     merchant: '',
@@ -291,7 +313,7 @@ export default function ImportDialog({
                 setSheet(prepared);
                 setMap(mapping);
                 setProof(evidence);
-                setRows(previewImport(prepared, mapping, account, state));
+                showRows(previewImport(prepared, mapping, account, state), pdf);
                 setReviewPage(0);
                 setError('');
               }}
@@ -368,7 +390,7 @@ export default function ImportDialog({
                   disabled={!signsConfirmed}
                   onClick={() => {
                     try {
-                      setRows(previewImport(sheet, map, account, state));
+                      showRows(previewImport(sheet, map, account, state));
                       setError('');
                     } catch (e) {
                       setError(readableError(e, 'Check mapping.'));
@@ -569,42 +591,59 @@ export default function ImportDialog({
               </button>
             </div>
           )}
-          <div className="coverage-confirm">
-            <h3>Confirm coverage only if your export is complete</h3>
-            <p className="fine-print">
-              A statement title or last purchase date does not prove coverage.
-              September needs posted transactions for September 1–30, often from
-              adjacent statements. Confirm weeks with no purchases too.
-            </p>
-            <div className="form-grid">
-              <label>
-                Covered from
+          {coverage?.beforeTracking ? (
+            <Notice tone="info">
+              <p>
+                <strong>
+                  {coverage.period
+                    ? `This statement covers ${shortDate(coverage.period.from ?? coverage.period.through).replace(/^\w+, /, '')} – ${shortDate(coverage.period.through).replace(/^\w+, /, '')}, ${coverage.period.through.slice(0, 4)}.`
+                    : 'Every row in this file is dated before September 1, 2026.'}
+                </strong>{' '}
+                Tracking starts September 1, 2026, so nothing from it is added.
+                Upload statements that include September or later.
+              </p>
+            </Notice>
+          ) : (
+            <div className="coverage-confirm">
+              <h3>Confirm coverage only if your export is complete</h3>
+              <p className="fine-print">
+                {coverage?.period
+                  ? 'Filled in from the statement period. '
+                  : 'Filled in from the dates in your file. '}
+                A month counts as covered only when every day's posted
+                transactions are imported, often from two adjacent statements.
+                Confirm weeks with no purchases too.
+              </p>
+              <div className="form-grid">
+                <label>
+                  Covered from
+                  <input
+                    type="date"
+                    min={START}
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Covered through
+                  <input
+                    type="date"
+                    min={from}
+                    value={through}
+                    onChange={(e) => setThrough(e.target.value)}
+                  />
+                </label>
+              </div>
+              <label className="check">
                 <input
-                  type="date"
-                  min="2026-09-01"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
+                  type="checkbox"
+                  checked={coverageConfirmed}
+                  onChange={(e) => setCoverageConfirmed(e.target.checked)}
                 />
-              </label>
-              <label>
-                Covered through
-                <input
-                  type="date"
-                  min={from}
-                  value={through}
-                  onChange={(e) => setThrough(e.target.value)}
-                />
+                I verified all posted transactions for this account and range.
               </label>
             </div>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={coverageConfirmed}
-                onChange={(e) => setCoverageConfirmed(e.target.checked)}
-              />
-              I verified all posted transactions for this account and range.
-            </label>
-          </div>
+          )}
           {uncertain > 0 && (
             <p className="blocking-hint">
               <TriangleAlert size={15} aria-hidden />
@@ -624,7 +663,7 @@ export default function ImportDialog({
             <button
               type="button"
               className="primary"
-              disabled={busy || uncertain > 0}
+              disabled={busy || uncertain > 0 || !!coverage?.beforeTracking}
               onClick={async () => {
                 try {
                   const next = confirmImport(

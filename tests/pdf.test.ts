@@ -405,6 +405,7 @@ describe('hard PDF worker cancellation and limits', () => {
             'Total Fees for this Period $0.00',
             'Interest Charged',
             'Total Interest Charged for this Period $0.00',
+            'Days in Billing Period: 30',
             '2026 Fees and Interest Totals Year-to-Date',
             'Total Fees in 2026 $0.00',
             'Total Interest in 2026 $0.97',
@@ -416,6 +417,8 @@ describe('hard PDF worker cancellation and limits', () => {
       6,
       'test',
     );
+    // Amex gives a closing date and the number of days in the period.
+    expect([s.cycleFrom, s.cycleThrough]).toEqual(['2026-08-25', '2026-09-23']);
     expect(s.warnings).toEqual(['dates']);
     expect(settled(s)).toEqual([
       'purchases',
