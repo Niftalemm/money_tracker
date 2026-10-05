@@ -1,4 +1,6 @@
-# Verification record · October 4, 2026
+# Verification record · October 5, 2026
+
+The local application checks below passed on October 4. The Node 24/build-configuration follow-up also passed a clean install, TypeScript, all 56 unit/integration tests, production build, dependency audit, and repository checks locally on October 5.
 
 | Check                                                 | Result                   |
 | ----------------------------------------------------- | ------------------------ |
@@ -22,6 +24,22 @@ Production browser checks run on a fresh local Next.js production build in deskt
 
 A separate local reference check used the supplied Amex PDF in the same browser worker, without saving, screenshots, tracing, or cloud upload. It extracted 63 new-charge rows that reconciled to their summary and two payment rows. Other section totals were ambiguous, so **complete statement reconciliation remains unverified**. The absence of a verified posted-date header requires owner date review. Only structural counts, warning codes, and reconciliation booleans were reported; original/extracted financial values are absent from the repository.
 
-**Pending live checks:** no Supabase project or Vercel deployment exists yet. Actual policies/grants/triggers, owner/MFA login and tokens, ciphertext-only cloud storage and requests, deployed headers, owner recovery and backup restoration against the cloud vault, and phone/computer conflict behavior must be verified after setup, using fake data. Real Capital One/BofA PDF layouts and Amex posted-date semantics also remain unvalidated. See [DEPLOYMENT.md](DEPLOYMENT.md), [SECURITY_REVIEW.md](SECURITY_REVIEW.md), and the step-by-step [README](../README.md).
+## Live checks · October 5, 2026
 
-No production deployment or paid feature was enabled. Passing local checks does not establish that a future deployment is secure.
+The owner configured Supabase and deployed [the Vercel app](https://money-tracker-rho-lime.vercel.app/). A deployment initially failed because the project URL included `/rest/v1`; removing that path allowed the configured build to become publicly available.
+
+| Check                           | Result                                                                                 |
+| ------------------------------- | -------------------------------------------------------------------------------------- |
+| Public page over verified HTTPS | HTTP 200; cloud configuration present                                                  |
+| Page CSP                        | Nonce-based scripts, no unsafe-eval, restricted connection origin, frame/object denial |
+| Page headers                    | HSTS, nosniff, no-referrer, DENY framing present                                       |
+| PDF worker                      | HTTP 200; CSP blocks network connections and nested workers; nosniff present           |
+| Anonymous vault SELECT          | HTTP 401, PostgreSQL permission code 42501                                             |
+| Anonymous `owner_access`        | HTTP 401, PostgreSQL permission code 42501                                             |
+| Anonymous `save_vault`          | HTTP 401, PostgreSQL permission code 42501                                             |
+
+The API checks used only the public browser key, without a user session. The save probe supplied a null payload and was denied; it created no records. These checks did not inspect financial data. They establish anonymous permission denial on the deployed project, but do not validate authenticated ownership or MFA policies. The live browser check remained unverified because Chromium did not trust the execution environment's proxy certificate; HTTPS verification was kept enabled for the HTTP checks.
+
+**Pending live checks:** actual policies/grants/triggers, owner and second-user access, missing/lost MFA and token behavior, ciphertext-only cloud storage and requests, owner recovery and backup restoration against the cloud vault, and phone/computer conflict behavior require authenticated verification using fake data. Real Capital One/BofA PDF layouts and Amex posted-date semantics also remain unvalidated. See [DEPLOYMENT.md](DEPLOYMENT.md), [SECURITY_REVIEW.md](SECURITY_REVIEW.md), and the step-by-step [README](../README.md).
+
+No paid feature was enabled during verification. Passing these checks does not establish that the deployment is secure.
