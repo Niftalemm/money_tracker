@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   title: 'Money Tracker',
   description: 'Your private monthly expense tracker',
   robots: { index: false, follow: false },
+  // Name under the icon when added to a phone's home screen.
+  appleWebApp: { title: 'Money Tracker' },
 };
 export const viewport: Viewport = {
   width: 'device-width',

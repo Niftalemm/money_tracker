@@ -274,3 +274,20 @@ test('detail sheets show their transactions, and taps leave no focus ring', asyn
   await page.keyboard.press('Tab');
   expect(await outline()).toBe('solid');
 });
+test('the purple logo is the tab and home-screen icon in every browser', async ({
+  page,
+  request,
+}) => {
+  for (const [rel, type] of [
+    ['icon', 'image/x-icon'],
+    ['icon', 'image/svg+xml'],
+    ['apple-touch-icon', 'image/png'],
+  ]) {
+    const href = await page
+      .locator(`link[rel="${rel}"][type="${type}"]`)
+      .getAttribute('href');
+    const response = await request.get(href!);
+    expect(response.ok()).toBe(true);
+    expect(response.headers()['content-type']).toBe(type);
+  }
+});
