@@ -126,9 +126,12 @@ export default function CashFlow({
                   className={m.month === month ? 'selected' : ''}
                 >
                   <th scope="row">{monthLabel(m.month)}</th>
-                  <td>{money(m.income)}</td>
-                  <td>{money(m.spending)}</td>
-                  <td className={m.net >= 0 ? 'credit' : 'warn'}>
+                  <td data-label="Income">{money(m.income)}</td>
+                  <td data-label="Spending">{money(m.spending)}</td>
+                  <td
+                    data-label="Net"
+                    className={m.net >= 0 ? 'credit' : 'warn'}
+                  >
                     {money(m.net)}
                   </td>
                 </tr>

@@ -28,6 +28,17 @@ test('every view is reachable without horizontal scrolling, with comfortable tou
       ),
       `${view} fits the viewport`,
     ).toBe(true);
+    expect(
+      await page.evaluate(() =>
+        [...document.querySelectorAll('main *')]
+          .filter((el) => el.scrollWidth > el.clientWidth + 1)
+          .filter((el) =>
+            ['auto', 'scroll'].includes(getComputedStyle(el).overflowX),
+          )
+          .map((el) => el.className),
+      ),
+      `${view} has no sideways-scrolling boxes`,
+    ).toEqual([]);
   }
   if (info.project.name !== 'phone') return;
   const targets = page

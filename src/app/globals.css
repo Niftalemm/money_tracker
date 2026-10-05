@@ -3246,3 +3246,37 @@ tr.row-muted td {
 .card-title {
   font-weight: 500;
 }
+
+/* Month table becomes stacked label/value rows on phones (no sideways scroll). */
+@media (max-width: 700px) {
+  .data-table.numeric thead {
+    display: none;
+  }
+  .data-table.numeric,
+  .data-table.numeric tbody {
+    display: block;
+  }
+  .data-table.numeric tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px 12px;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table.numeric tr > * {
+    padding: 0;
+    border: 0;
+  }
+  .data-table.numeric tbody th {
+    grid-column: 1 / -1;
+  }
+  .data-table.numeric td {
+    text-align: left;
+  }
+  .data-table.numeric td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+  }
+}
