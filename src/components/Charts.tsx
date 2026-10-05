@@ -13,11 +13,11 @@ import {
 } from 'recharts';
 import { money } from '@/lib/accounting';
 import type { DailyPoint } from '@/lib/insights';
-const INK = '#5b6578',
-  GRID = '#eceff5',
-  PRIMARY = '#4f46e5',
-  PRIMARY_SOFT = '#e0e7ff',
-  PRIOR = '#a3acc0',
+const INK = '#8a8984',
+  GRID = 'rgba(128, 128, 128, 0.2)',
+  PRIMARY = '#6366f1',
+  PRIMARY_SOFT = 'rgba(99, 102, 241, 0.24)',
+  PRIOR = '#9a9892',
   INCOME = '#10b981';
 // Keep a readable scale when a month has no spending yet (values are cents).
 const DOMAIN: [(min: number) => number, (max: number) => number] = [
@@ -175,7 +175,7 @@ export function MonthlyChart({
             domain={DOMAIN}
           />
           <Tooltip
-            cursor={{ fill: '#f3f4fb' }}
+            cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
             content={(p) => (
               <Tip
                 {...(p as TipProps)}
@@ -228,7 +228,7 @@ export function CashFlowChart({
             domain={DOMAIN}
           />
           <Tooltip
-            cursor={{ fill: '#f3f4fb' }}
+            cursor={{ fill: 'rgba(128, 128, 128, 0.1)' }}
             content={(p) => (
               <Tip
                 {...(p as TipProps)}

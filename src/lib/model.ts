@@ -122,6 +122,7 @@ export const stateSchema = z
         'Capital One': z.number().int().min(1).max(31).nullable(),
       }),
       weeklyAmex: z.boolean(),
+      theme: z.enum(['system', 'light', 'dark']).optional(),
     }),
     updatedAt: z.iso.datetime().nullable(),
   })

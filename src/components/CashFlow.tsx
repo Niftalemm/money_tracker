@@ -13,6 +13,7 @@ import {
 import { cashFlow, categoryShares, monthShort } from '@/lib/insights';
 import type { TrackerState, Transaction } from '@/lib/model';
 import { CashFlowChart } from './Charts';
+import CashFlowSankey from './CashFlowSankey';
 import MerchantIcon from './MerchantIcon';
 import CategoryDetail from './CategoryDetail';
 import { CategoryIcon, Delta, EmptyState, Progress, categoryTone } from './ui';
@@ -86,6 +87,20 @@ export default function CashFlow({
           </p>
         </section>
       </div>
+      <section className="card" aria-labelledby="sankey-title">
+        <div className="card-header">
+          <div>
+            <h2 className="card-title" id="sankey-title">
+              Where the money went
+            </h2>
+            <p className="card-subtitle">
+              {monthLabel(month)}: recorded income flowing into each category.
+              Tap a flow for its amount, or a category for details.
+            </p>
+          </div>
+        </div>
+        <CashFlowSankey state={state} month={month} onCategory={setCategory} />
+      </section>
       <section className="card" aria-labelledby="flow-title">
         <div className="card-header">
           <div>

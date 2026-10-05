@@ -15,6 +15,8 @@ import {
   Plus,
   Settings as SettingsIcon,
   ShieldCheck,
+  Moon,
+  Sun,
   Upload,
   type LucideIcon,
 } from 'lucide-react';
@@ -30,6 +32,7 @@ import ImportDialog from './ImportDialog';
 import ExpenseDialog from './ExpenseDialog';
 import Modal from './Modal';
 import { Notice, Spinner } from './ui';
+import { changer } from './change';
 import { accountCoverage, monthLabel, trackedMonths } from '@/lib/accounting';
 import { exportExcel } from '@/lib/exports';
 import { ACCOUNTS, type Transaction } from '@/lib/model';
@@ -73,6 +76,29 @@ function Workspace(ctx: Context) {
     [more, setMore] = useState(false),
     [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const { state, demo, busy, save } = ctx;
+  // Theme: follow the device unless the owner picked one (saved in the
+  // encrypted preferences, never in browser storage).
+  const theme = state.preferences.theme ?? 'system';
+  const [systemDark, setSystemDark] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    setSystemDark(query.matches);
+    const update = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }, [theme]);
+  useEffect(
+    () => () => {
+      delete document.documentElement.dataset.theme;
+    },
+    [],
+  );
+  const dark = theme === 'dark' || (theme === 'system' && systemDark);
   const months = trackedMonths(),
     index = months.indexOf(month);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -121,6 +147,24 @@ function Workspace(ctx: Context) {
             ))}
           </nav>
           <div className="topbar-actions">
+            <button
+              type="button"
+              className="icon-button theme-toggle"
+              aria-label={dark ? 'Use light mode' : 'Use dark mode'}
+              disabled={busy}
+              onClick={() =>
+                void changer(
+                  state,
+                  save,
+                  setMessage,
+                  notify,
+                )((s) => {
+                  s.preferences.theme = dark ? 'light' : 'dark';
+                })
+              }
+            >
+              {dark ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
             <button
               type="button"
               className="icon-button top-settings"

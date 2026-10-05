@@ -80,6 +80,37 @@ export default function Settings({
     <div className="settings-grid">
       <section className="card">
         <CardHeader
+          title="Appearance"
+          subtitle="System follows your phone or computer. Your choice is saved in the encrypted vault, not in the browser."
+        />
+        <fieldset className="segmented-field">
+          <legend className="sr-only">Theme</legend>
+          <div className="segmented three">
+            {(['system', 'light', 'dark'] as const).map((value) => {
+              const current = (state.preferences.theme ?? 'system') === value;
+              return (
+                <label key={value} className={current ? 'on' : ''}>
+                  <input
+                    type="radio"
+                    name="theme"
+                    value={value}
+                    checked={current}
+                    disabled={busy}
+                    onChange={() =>
+                      void change((s) => {
+                        s.preferences.theme = value;
+                      })
+                    }
+                  />
+                  {value[0].toUpperCase() + value.slice(1)}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      </section>
+      <section className="card">
+        <CardHeader
           title="Categories"
           subtitle="Clear matches get a category. Everything else stays Uncategorized and still counts."
         />

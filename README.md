@@ -14,12 +14,14 @@ Open http://localhost:3000 and choose **Try with fake data**. No credentials or 
 The dashboard opens in September. Use the month switcher (‹ ›) to select October for equal-day comparisons, a running spending chart against September, and a clearly labeled early estimate. Select a category, then a merchant, for exact transactions.
 
 - **Transactions** groups entries by day, with search, category/type filters, and one-tap bank chips. Select any row to edit or delete it.
-- **Cash flow** compares recorded income with net spending by month, with full category and top-merchant breakdowns.
+- **Cash flow** opens with a flow diagram: recorded income on the left flows through the month into each spending category and, when income exceeds spending, "Left over". Tap a flow for its amount or a category for its transactions. Below it, recorded income vs. net spending by month, with full category and top-merchant breakdowns.
 - **Accounts** shows each bank's spending, confirmed coverage, statement-availability day, update notices, and confirmed ranges.
 - **Recurring** lists scheduled bills as _not yet recorded_ or _payment linked_ for the selected month.
 - **Settings** contains categories, merchant rules, import history/undo, and encrypted backups.
 
 On a computer, every section is in the top navigation bar, with Settings and Lock at the right. On a phone, a bottom tab bar holds Dashboard, Transactions, a central **Add** button, Cash flow, and **More** (Accounts, Recurring, Settings); the lock button stays in the top bar. A new, empty vault shows a short getting-started checklist. Text uses Inter, with Source Serif 4 for page titles and money figures (both SIL Open Font License, installed through npm and served from the app itself). Account badges use the official Amex and Bank of America marks from Simple Icons (CC0) and the official Capital One logo from thesvg.org (MIT); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Merchants show a brand logo when the description matches a well-known brand (for example Starbucks, McDonald's, Uber Eats, Target, Netflix), otherwise an icon for the kind of place (coffee, bakery, pizza, groceries, delivery, restaurant, transit, pharmacy, and more). Recognition runs on your device; nothing is fetched from other sites. Logos are trademarks of their owners.
+
+**Dark mode** follows your device by default. Switch it with the sun/moon button in the top bar or under **Settings → Appearance** (System, Light, Dark). The choice is saved inside your encrypted vault, never in browser storage, so it follows you between phone and computer.
 
 ## Supabase setup — about 10 minutes
 

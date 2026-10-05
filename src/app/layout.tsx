@@ -12,7 +12,10 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#312e81',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f9f8f5' },
+    { media: '(prefers-color-scheme: dark)', color: '#121211' },
+  ],
 };
 export const dynamic = 'force-dynamic';
 export default function RootLayout({

@@ -197,3 +197,44 @@ test('the font is self-hosted and bank logos render without outside requests', a
     ),
   ).toBe(true);
 });
+test('cash flow diagram balances and opens category details', async ({
+  page,
+}) => {
+  await openView(page, 'Cash flow');
+  const diagram = page.getByRole('img', { name: /Cash flow for the month/ });
+  await expect(diagram).toBeVisible();
+  await expect(diagram).toHaveAttribute('aria-label', /Left over/);
+  await page.getByRole('button', { name: /^Housing, \$1,600\.00/ }).click();
+  await expect(
+    page.getByRole('dialog').getByRole('heading', {
+      name: 'All merchants · exact transactions',
+    }),
+  ).toBeVisible();
+});
+test('dark mode follows the device, can be overridden, and never touches browser storage', async ({
+  page,
+}) => {
+  const isDark = () =>
+    page.evaluate(
+      () =>
+        getComputedStyle(document.body).backgroundColor === 'rgb(18, 18, 17)',
+    );
+  expect(await isDark()).toBe(false);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  expect(await isDark()).toBe(true);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.getByRole('button', { name: 'Use dark mode' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(await isDark()).toBe(true);
+  await openView(page, 'Settings');
+  await expect(page.getByLabel('Dark', { exact: true })).toBeChecked();
+  await page.locator('.segmented label', { hasText: 'System' }).click();
+  await expect(page.getByLabel('System', { exact: true })).toBeChecked();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+  expect(
+    await page.evaluate(() => localStorage.length + sessionStorage.length),
+  ).toBe(0);
+  await page.getByRole('button', { name: 'Use dark mode' }).click();
+  await page.getByRole('button', { name: 'Exit demo' }).click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.+/);
+});

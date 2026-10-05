@@ -163,3 +163,87 @@ export const monthShort = (month: string) =>
     month: 'short',
     timeZone: 'UTC',
   }).format(new Date(month + '-01T12:00:00Z'));
+// Cash flow diagram: income sources -> month -> spending categories (+ left over).
+export type SankeyNode = {
+  key: string;
+  name: string;
+  cents: number;
+  color: string;
+  category?: string;
+};
+const MAX_SOURCES = 4,
+  MAX_DESTINATIONS = 8;
+function fold(nodes: SankeyNode[], max: number, name: string, color: string) {
+  if (nodes.length <= max) return nodes;
+  const rest = nodes.slice(max - 1);
+  return [
+    ...nodes.slice(0, max - 1),
+    {
+      key: `fold-${name}`,
+      name,
+      cents: rest.reduce((sum, n) => sum + n.cents, 0),
+      color,
+    },
+  ];
+}
+export function sankeyData(s: TrackerState, month: string) {
+  const tx = monthTransactions(s, month);
+  const income = new Map<string, number>();
+  for (const t of tx)
+    if (t.type === 'income' && !t.reimbursementFor)
+      income.set(t.merchant, (income.get(t.merchant) ?? 0) + t.amountCents);
+  let sources: SankeyNode[] = [...income]
+    .map(([name, cents]) => ({
+      key: `in-${name}`,
+      name,
+      cents,
+      color: 'var(--flow-income)',
+    }))
+    .sort((a, b) => b.cents - a.cents);
+  sources = fold(sources, MAX_SOURCES, 'Other income', 'var(--flow-income)');
+  const palette = s.categories.filter((c) => c !== 'Uncategorized');
+  let destinations: SankeyNode[] = categoryShares(tx)
+    .filter((c) => c.cents > 0)
+    .map((c) => {
+      const slot = palette.indexOf(c.name);
+      return {
+        key: `out-${c.name}`,
+        name: c.name,
+        cents: c.cents,
+        category: c.name,
+        color:
+          slot >= 0 && slot < 8
+            ? `var(--series-${slot + 1})`
+            : 'var(--flow-other)',
+      };
+    });
+  destinations = fold(
+    destinations,
+    MAX_DESTINATIONS,
+    'Everything else',
+    'var(--flow-other)',
+  );
+  const spent = destinations.reduce((sum, n) => sum + n.cents, 0),
+    earned = sources.reduce((sum, n) => sum + n.cents, 0);
+  if (earned > spent)
+    destinations.push({
+      key: 'saved',
+      name: 'Left over',
+      cents: earned - spent,
+      color: 'var(--flow-income)',
+    });
+  if (spent > earned)
+    sources.push({
+      key: 'gap',
+      name: earned ? 'Beyond recorded income' : 'No income recorded',
+      cents: spent - earned,
+      color: 'var(--flow-gap)',
+    });
+  return {
+    sources,
+    destinations,
+    earned,
+    spent,
+    total: Math.max(spent, earned),
+  };
+}
