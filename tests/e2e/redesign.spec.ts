@@ -291,3 +291,45 @@ test('the purple logo is the tab and home-screen icon in every browser', async (
     expect(response.headers()['content-type']).toBe(type);
   }
 });
+test('the expense sheet stays put, keeps Save in reach, and swipes down to close', async ({
+  page,
+}, info) => {
+  await page.getByRole('button', { name: 'Add expense' }).first().click();
+  const dialog = page.getByRole('dialog');
+  // Save is pinned below the form, not floating over it.
+  await expect(
+    dialog.getByRole('button', { name: 'Save transaction' }),
+  ).toBeInViewport();
+  // Nothing in the sheet is wider than the sheet, so it can't slide sideways.
+  const body = dialog.locator('.modal-body');
+  expect(await body.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  const box = (await dialog.getByLabel('Posted date').boundingBox())!,
+    sheet = (await dialog.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(sheet.x + sheet.width);
+  if (info.project.name !== 'phone') return;
+  const settled = () =>
+    dialog.evaluate((d) =>
+      Promise.all(d.getAnimations().map((a) => a.finished)),
+    );
+  const grip = async () => {
+    await settled();
+    const heading = (await dialog.locator('.modal-heading').boundingBox())!;
+    return [heading.x + heading.width / 3, heading.y + 12];
+  };
+  let [x, y] = await grip();
+  // A small, slow pull springs back.
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + 30, { steps: 10 });
+  await page.waitForTimeout(300);
+  await page.mouse.up();
+  await expect(dialog).toBeVisible();
+  await page.waitForTimeout(400); // let it spring back
+  [x, y] = await grip();
+  // A real swipe down closes it.
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + 220, { steps: 8 });
+  await page.mouse.up();
+  await expect(dialog).toHaveCount(0);
+});

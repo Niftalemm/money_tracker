@@ -2100,6 +2100,7 @@ button.rank-row:hover {
   flex: 1 1 auto;
   min-height: 0;
   padding: 18px 22px 22px;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -2120,6 +2121,30 @@ button.rank-row:hover {
 .modal-actions > button {
   white-space: normal;
   text-align: center;
+}
+.modal-footer {
+  flex: none;
+  margin: 0;
+  padding: 12px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.modal {
+  transition: transform 0.2s ease;
+}
+.modal.dragging {
+  transition: none;
+}
+/* iOS gives date fields a fixed intrinsic width that overflowed the sheet
+   and let it slide sideways. */
+input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  text-align: left;
+}
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
 }
 .sticky-actions {
   position: sticky;
@@ -3112,9 +3137,33 @@ tr.row-muted td {
   .modal-body {
     padding: 16px 18px calc(22px + env(safe-area-inset-bottom));
   }
+  /* Sticky bars inside a scrolling sheet drift on iOS; on phones they sit at
+     the end of the content, and the expense form uses a pinned footer. */
   .sticky-actions {
-    margin: 18px -18px calc(-22px - env(safe-area-inset-bottom));
+    position: static;
+    margin: 18px 0 0;
+    padding: 14px 0 0;
+    background: none;
+  }
+  .modal-body {
+    touch-action: pan-y;
+  }
+  .modal-footer {
     padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  }
+  .modal-footer ~ .modal-body,
+  .modal-body:has(+ .modal-footer) {
+    padding-bottom: 18px;
+  }
+  /* The top of a sheet (handle, title) is where you swipe it down. */
+  .modal-heading {
+    touch-action: none;
+    cursor: grab;
+  }
+  .modal-heading::before {
+    width: 48px;
+    height: 5px;
+    margin-left: -24px;
   }
   .modal-actions > button {
     flex: 1 1 auto;

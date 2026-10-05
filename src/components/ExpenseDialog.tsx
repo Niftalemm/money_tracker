@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { ZodError } from 'zod';
 import { Trash2 } from 'lucide-react';
 import {
@@ -41,6 +41,7 @@ export default function ExpenseDialog({
   onSaved?: (message: string) => void;
   onClose: () => void;
 }) {
+  const formId = useId();
   const [t, setT] = useState<Transaction>(
     transaction ?? {
       id: uid(),
@@ -118,6 +119,17 @@ export default function ExpenseDialog({
           ? `${transaction.source === 'import' ? 'Imported' : 'Manual entry'} · review every field before saving.`
           : 'Use your keyboard’s dictation if helpful, then review every field before saving.'
       }
+      footer={
+        <>
+          <button type="button" className="secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary" form={formId} disabled={busy}>
+            {busy && <Spinner />}
+            {busy ? 'Saving…' : 'Save transaction'}
+          </button>
+        </>
+      }
     >
       {error && (
         <Notice tone="error" role="alert">
@@ -125,6 +137,7 @@ export default function ExpenseDialog({
         </Notice>
       )}
       <form
+        id={formId}
         className="sheet-form"
         onSubmit={(e) => {
           e.preventDefault();
@@ -322,15 +335,6 @@ export default function ExpenseDialog({
             </div>
           </Notice>
         )}
-        <div className="modal-actions sticky-actions">
-          <button type="button" className="secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="primary" disabled={busy}>
-            {busy && <Spinner />}
-            {busy ? 'Saving…' : 'Save transaction'}
-          </button>
-        </div>
       </form>
     </Modal>
   );
