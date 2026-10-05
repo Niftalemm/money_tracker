@@ -6,6 +6,7 @@ import {
   accountCoverage,
   comparison,
   money,
+  firstMonth,
 } from './accounting';
 import { ACCOUNTS, type TrackerState } from './model';
 export function download(blob: Blob, name: string) {
@@ -75,6 +76,7 @@ export async function excelBuffer(s: TrackerState, month?: string) {
           .map((t) => t.postedDate.slice(0, 7))
           .sort()
           .at(-1),
+        firstMonth(s),
       );
   months.forEach((m) => {
     const comp = comparison(s, m),

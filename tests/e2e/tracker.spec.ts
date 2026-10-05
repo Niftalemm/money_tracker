@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openView } from './helpers';
 import { demoState } from '../../src/lib/demo';
 import { money, monthTransactions, total } from '../../src/lib/accounting';
 const initial = total(monthTransactions(demoState(), '2026-09'));
@@ -80,7 +81,7 @@ test('imports require mapping and confirmation; payment correction and undo pres
   await expect(page.getByTestId('net-spending')).toHaveText(
     money(initial + 2500),
   );
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openView(page, 'Settings');
   await page.getByRole('button', { name: 'Undo', exact: true }).first().click();
   await page.getByRole('button', { name: 'Confirm undo' }).click();
   await page.getByRole('button', { name: 'Dashboard', exact: true }).click();
@@ -127,4 +128,82 @@ test('ten minutes of inactivity clears the unlocked workspace', async ({
     page.getByRole('heading', { name: 'Welcome to your tracker' }),
   ).toBeVisible();
   await expect(page.getByTestId('net-spending')).toHaveCount(0);
+});
+test('a purchase you entered is matched to its later statement line instead of counting twice', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Add expense' }).click();
+  await page.getByLabel('Merchant or description').fill('Starbucks');
+  await page.getByLabel('Amount (USD, positive)', { exact: true }).fill('6.50');
+  await page.getByLabel('Posted date', { exact: true }).fill('2026-09-05');
+  await page.getByRole('button', { name: 'Save transaction' }).click();
+  await expect(page.getByTestId('net-spending')).toHaveText(
+    money(initial + 650),
+  );
+  await page.getByRole('button', { name: 'Upload transactions' }).click();
+  await page
+    .getByRole('combobox', { name: 'Account', exact: true })
+    .selectOption('Amex');
+  await page.getByLabel('Transaction file').setInputFiles({
+    name: 'synthetic.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(
+      'Date,Description,Amount\n2026-09-07,STARBUCKS STORE 12345 NEW YORK NY,6.50',
+    ),
+  });
+  await page.getByLabel('Posted date', { exact: true }).selectOption('Date');
+  await page
+    .getByLabel('Description / merchant', { exact: true })
+    .selectOption('Description');
+  await page.getByLabel('Amount', { exact: true }).selectOption('Amount');
+  await page.getByLabel('I checked my export').check();
+  await page.getByRole('button', { name: 'Review 1 row' }).click();
+  await expect(
+    page.getByText('Looks like your entry "Starbucks" on Sat, Sep 5'),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Confirm import' }),
+  ).toBeDisabled();
+  await page.getByLabel('Action row 2').selectOption('link');
+  await page.getByRole('button', { name: 'Confirm import' }).click();
+  await expect(page.getByTestId('net-spending')).toHaveText(
+    money(initial + 650),
+  );
+});
+test('coverage dates come from the file, and older statements add their own months', async ({
+  page,
+}) => {
+  const upload = async (csv: string) => {
+    await page.getByRole('button', { name: 'Upload transactions' }).click();
+    await page.getByLabel('Transaction file').setInputFiles({
+      name: 'synthetic.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(csv),
+    });
+    await page.getByLabel('Posted date', { exact: true }).selectOption('Date');
+    await page
+      .getByLabel('Description / merchant', { exact: true })
+      .selectOption('Description');
+    await page.getByLabel('Amount', { exact: true }).selectOption('Amount');
+    await page.getByLabel('I checked my export').check();
+    await page.getByRole('button', { name: /^Review \d+ rows?$/ }).click();
+  };
+  await upload(
+    'Date,Description,Amount\n2026-09-03,Synthetic shop,5.00\n2026-09-12,Synthetic cafe,4.00',
+  );
+  await expect(page.getByLabel('Covered from')).toHaveValue('2026-09-03');
+  await expect(page.getByLabel('Covered through')).toHaveValue('2026-09-12');
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await upload(
+    'Date,Description,Amount\n2026-05-28,Synthetic shop,5.00\n2026-06-20,Synthetic cafe,4.00',
+  );
+  await expect(page.getByLabel('Covered from')).toHaveValue('2026-05-28');
+  await expect(page.getByLabel('Covered through')).toHaveValue('2026-06-20');
+  await page.getByRole('button', { name: 'Confirm import' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // May and June now appear as their own months.
+  await page.getByLabel('Selected month').selectOption('2026-05');
+  await expect(page.getByTestId('net-spending')).toHaveText('$5.00');
+  await page.getByLabel('Selected month').selectOption('2026-06');
+  await expect(page.getByTestId('net-spending')).toHaveText('$4.00');
 });

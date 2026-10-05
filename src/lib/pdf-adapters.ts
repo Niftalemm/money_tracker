@@ -95,6 +95,8 @@ function groupFor(text: string): PdfGroup | undefined {
     return 'payments-and-credits';
   if (/deposits?(?: and other additions)?|other additions/.test(value))
     return 'deposits';
+  if (/atm and debit card|debit card (?:subtractions|purchases)/.test(value))
+    return 'debit-card';
   if (
     /withdrawals?(?: and other subtractions)?|other subtractions|electronic withdrawals|debits and withdrawals/.test(
       value,
@@ -102,12 +104,12 @@ function groupFor(text: string): PdfGroup | undefined {
   )
     return 'withdrawals';
   if (/\bchecks(?: paid)?\b/.test(value)) return 'checks';
-  if (/interest charged|interest charges|total interest/.test(value))
+  if (/interest charged?|interest charges|total interest/.test(value))
     return 'interest';
   if (/\b(?:service )?fees(?: charged| for this period)?\b/.test(value))
     return 'fees';
   if (
-    /new charges|purchases(?: and adjustments)?|transactions(?: total)?|cash advances/.test(
+    /new charges|purchases(?: and adjustments)?|transactions(?: total)?/.test(
       value,
     )
   )
@@ -195,7 +197,32 @@ export function adaptPdf(
       ? 'deposit'
       : 'card';
   let cycleThrough: string | undefined, cycleFrom: string | undefined;
+  // Prefer an explicit range ("Aug 10, 2026 - Sep 08, 2026", "August 15, 2026 to
+  // September 15, 2026"); single dates near "closing date" can be due dates.
   for (const line of lines.slice(0, 150)) {
+    const tokens = [...line.text.matchAll(DATE)];
+    for (let i = 0; i + 1 < tokens.length; i++) {
+      const between = line.text.slice(
+        tokens[i].index! + tokens[i][0].length,
+        tokens[i + 1].index,
+      );
+      const from = pdfDate(tokens[i][0]),
+        through = pdfDate(tokens[i + 1][0]);
+      if (
+        /^\s*(?:-|–|to|through)\s*$/i.test(between) &&
+        from &&
+        through &&
+        from < through
+      ) {
+        cycleFrom = from;
+        cycleThrough = through;
+        break;
+      }
+    }
+    if (cycleThrough) break;
+  }
+  for (const line of cycleThrough ? [] : lines.slice(0, 150)) {
+    if (/\bdue\b|upcoming|next statement/i.test(line.text)) continue;
     if (
       !/closing date|statement (?:period|date)|billing period|account summary.*through|through\s/i.test(
         line.text,
@@ -209,6 +236,19 @@ export function adaptPdf(
       if (dates.length > 1) cycleFrom = dates[0];
     }
   }
+  // Amex gives only a closing date plus "Days in Billing Period: 30".
+  if (cycleThrough && !cycleFrom) {
+    const days = lines
+      .map((l) =>
+        /days in billing (?:period|cycle):?\s*(\d{1,2})\b/i.exec(l.text),
+      )
+      .find(Boolean);
+    if (days && +days[1] >= 20 && +days[1] <= 35) {
+      const start = new Date(cycleThrough + 'T12:00:00Z');
+      start.setUTCDate(start.getUTCDate() - (+days[1] - 1));
+      cycleFrom = start.toISOString().slice(0, 10);
+    }
+  }
   const rows: PdfRow[] = [],
     totals: PdfStatement['totals'] = [];
   let section: PdfGroup = 'unknown',
@@ -217,6 +257,10 @@ export function adaptPdf(
     explicitPosted = false,
     twoDates = false,
     postedFirst = false,
+    singleDate = false,
+    starPosted = false,
+    tableSeen = false,
+    yearToDate = false,
     ambiguous = false;
   for (const line of lines) {
     const text = clean(line.text);
@@ -226,13 +270,33 @@ export function adaptPdf(
       text.length < 150
     ) {
       explicitPosted = true;
+      tableSeen = true;
+      singleDate = false;
       twoDates = /transaction|purchase|trans\.? date/i.test(text);
       const postedIndex = text.search(/post(?:ed|ing)?\s*date/i),
         purchaseIndex = text.search(/transaction|purchase|trans\.? date/i);
       postedFirst = twoDates && postedIndex < purchaseIndex;
     }
+    // A single "Date" column. Deposit ledgers list the posting date there.
+    if (/^date\s+description\b/i.test(text) && text.length < 60) {
+      tableSeen = true;
+      singleDate = true;
+      twoDates = false;
+      if (kind === 'deposit') explicitPosted = true;
+    }
+    if (/indicates posting date/i.test(text)) {
+      starPosted = true;
+      tableSeen = true;
+    }
+    if (/year.to.date|totals? for (?:this|the) year/i.test(text)) {
+      yearToDate = true;
+      inSummary = false;
+      summaryGroup = undefined;
+      section = 'unknown';
+      continue;
+    }
     if (
-      /year.to.date|totals? for (?:this|the) year|annual percentage|interest charge calculation|rewards summary|minimum payment|payment due date/i.test(
+      /annual percentage|interest charge calculation|rewards summary|minimum payment|payment due date/i.test(
         text,
       )
     ) {
@@ -243,11 +307,20 @@ export function adaptPdf(
     }
     const dates = [...text.matchAll(DATE)];
     const amounts = [...text.matchAll(AMOUNT)];
-    const leadingDate = dates.length && dates[0].index! <= 3;
-    if (leadingDate && amounts.length) {
+    // A row starts with its date: not "p. 7/7", and not a sentence ("10/08/26.").
+    const leadingDate =
+      dates.length > 0 &&
+      /^[^A-Za-z0-9]{0,3}$/.test(text.slice(0, dates[0].index)) &&
+      !/^[.,]/.test(text.slice(dates[0].index! + dates[0][0].length));
+    // Summary/coupon text before any transaction table is never a row, but it
+    // can still carry a section total ("... Payments - $41.00").
+    const rowCandidate = leadingDate && (section !== 'unknown' || tableSeen);
+    if (rowCandidate && amounts.length) {
       const lastAmount = amounts.at(-1)!;
       const lastDate =
-        dates.length > 1 && dates[1].index! < 25 ? dates[1] : dates[0];
+        !singleDate && dates.length > 1 && dates[1].index! < 25
+          ? dates[1]
+          : dates[0];
       const start = lastDate.index! + lastDate[0].length,
         end = lastAmount.index!;
       const merchant = safeMerchant(
@@ -260,6 +333,19 @@ export function adaptPdf(
       const postedToken = twoDates && postedFirst ? dates[0] : lastDate;
       const purchaseToken = postedToken === dates[0] ? lastDate : dates[0];
       const date = pdfDate(postedToken[0], cycleThrough);
+      const starred =
+        starPosted && text[postedToken.index! + postedToken[0].length] === '*';
+      const inCycle =
+        !!date &&
+        !!cycleFrom &&
+        !!cycleThrough &&
+        date >= cycleFrom &&
+        date <= cycleThrough;
+      const type =
+        section === 'payments-and-credits' &&
+        /\b(?:autopay|payment|pymt|thank you)\b/i.test(merchant)
+          ? 'transfer'
+          : rowType(section);
       rows.push({
         id: `p${line.page}-r${rows.length + 1}`,
         page: line.page,
@@ -271,24 +357,53 @@ export function adaptPdf(
         merchant,
         amountCents: pdfAmount(lastAmount[0]),
         group: section,
-        type: rowType(section),
-        dateUncertain:
-          !explicitPosted || !date || !dateParts(postedToken[0])?.year,
+        type,
+        dateUncertain: starred
+          ? !date
+          : !explicitPosted ||
+            !date ||
+            (!dateParts(postedToken[0])?.year && !inCycle),
         pending: /\bpending\b|authorization only/i.test(text),
       });
       if (rows.length > PDF_LIMITS.rows) throw new Error('text-limit');
       continue;
     }
-    if (leadingDate && !amounts.length) {
-      ambiguous = true;
+    if (rowCandidate && !amounts.length) {
+      // A repeated page header ("Aug 10, 2026 - Sep 08, 2026") is not a row.
+      if (pdfDate(dates[0][0]) !== cycleFrom) ambiguous = true;
       continue;
     }
     const group = groupFor(text);
     const isTotal =
       /^total\b/i.test(text) || /\bsummary\b|account summary/i.test(text);
-    if (group && !amounts.length && text.length < 120) {
+    if (group && !amounts.length && text.length < 70 && !/\.$/.test(text)) {
       section = group;
       summaryGroup = group;
+      yearToDate = false;
+    }
+    // Itemized interest/fee lines have no date; they post on the closing date.
+    if (
+      (section === 'interest' || section === 'fees') &&
+      amounts.length === 1 &&
+      !dates.length &&
+      !isTotal &&
+      !yearToDate &&
+      /^(?:interest charge on|[a-z ]*fee\b)/i.test(text)
+    ) {
+      const cents = pdfAmount(amounts[0][0]);
+      if (cents > 0)
+        rows.push({
+          id: `p${line.page}-r${rows.length + 1}`,
+          page: line.page,
+          date: cycleThrough ?? '',
+          merchant: safeMerchant(text.slice(0, amounts[0].index)),
+          amountCents: cents,
+          group: section,
+          type: 'purchase',
+          dateUncertain: !cycleThrough,
+          pending: false,
+        });
+      continue;
     }
     if (/^summary\b|account summary/i.test(text)) inSummary = true;
     if (
@@ -299,7 +414,12 @@ export function adaptPdf(
       inSummary = false;
     if (
       amounts.length === 1 &&
-      !/year|apr|rate|balance|due|available|limit|minimum/i.test(text)
+      !yearToDate &&
+      // A total ends with its amount; terms text that merely mentions one does not.
+      !text.slice(amounts[0].index! + amounts[0][0].length).trim() &&
+      !/year|apr|rate|balance|due|available|limit|minimum|\bwill\b|\bin 20\d\d\b/i.test(
+        text,
+      )
     ) {
       const amount = pdfAmount(amounts[0][0]);
       const target = group ?? (inSummary ? summaryGroup : undefined);
@@ -308,6 +428,37 @@ export function adaptPdf(
         if (totals.length > 100) throw new Error('text-limit');
       }
     }
+  }
+  // Nothing posts outside its statement period. Amex lists credits (fraud
+  // credits, refunds) under the original purchase date, sometimes months
+  // earlier; keep that as the purchase date and post the row in the period.
+  if (cycleFrom && cycleThrough)
+    for (const row of rows)
+      if (row.date && (row.date < cycleFrom || row.date > cycleThrough)) {
+        row.purchaseDate ??= row.date;
+        row.date = row.date < cycleFrom ? cycleFrom : cycleThrough;
+        row.dateUncertain = true;
+      }
+  // Capital One lists payments and credits separately in its summary but in one
+  // detail section; their sum is the statement's own combined total.
+  const single = (group: PdfGroup) => {
+    const values = [
+      ...new Set(totals.filter((t) => t.group === group).map((t) => t.cents)),
+    ];
+    return values.length === 1 ? values[0] : undefined;
+  };
+  if (
+    rows.some((r) => r.group === 'payments-and-credits') &&
+    !totals.some((t) => t.group === 'payments-and-credits')
+  ) {
+    const payments = single('payments'),
+      credits = single('credits');
+    if (payments !== undefined && credits !== undefined)
+      totals.push({
+        group: 'payments-and-credits',
+        cents: payments + credits,
+        page: 1,
+      });
   }
   const warnings: PdfStatement['warnings'] = [];
   if (rows.some((r) => r.dateUncertain)) warnings.push('dates');
@@ -323,9 +474,9 @@ export function adaptPdf(
   }
   if ([...grouped.values()].some((s) => s.size > 1))
     warnings.push('inconsistent-totals');
-  // Real Capital One / BofA layouts have not yet been supplied; never claim validation.
-  if (account !== 'Amex' || !selectedBrand.test(first))
-    warnings.push('layout-unvalidated');
+  // Profiles were checked locally against one real statement per bank (see
+  // docs/STATEMENT_LAYOUTS.md); an unrecognized first page is still unvalidated.
+  if (!selectedBrand.test(first)) warnings.push('layout-unvalidated');
   if (!rows.length || totals.length < (kind === 'card' ? 4 : 3))
     warnings.push('missing-totals');
   return {

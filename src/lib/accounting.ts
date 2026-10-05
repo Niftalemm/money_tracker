@@ -32,9 +32,24 @@ export const addDays = (date: string, days: number) =>
   new Date(Date.parse(date + 'T12:00:00Z') + days * 86400000)
     .toISOString()
     .slice(0, 10);
-export function trackedMonths(through = todayNY().slice(0, 7)) {
+/** The earliest month with records or confirmed coverage (September 2026 at the latest). */
+export function firstMonth(s?: {
+  transactions: { postedDate: string }[];
+  coverage: { from: string }[];
+}) {
+  let first = START.slice(0, 7);
+  for (const t of s?.transactions ?? [])
+    if (t.postedDate.slice(0, 7) < first) first = t.postedDate.slice(0, 7);
+  for (const c of s?.coverage ?? [])
+    if (c.from.slice(0, 7) < first) first = c.from.slice(0, 7);
+  return first;
+}
+export function trackedMonths(
+  through = todayNY().slice(0, 7),
+  from = START.slice(0, 7),
+) {
   const result: string[] = [];
-  for (let m = '2026-09'; m <= through; m = nextMonth(m)) result.push(m);
+  for (let m = from; m <= through; m = nextMonth(m)) result.push(m);
   return result;
 }
 export const monthLabel = (month: string) =>
@@ -127,7 +142,7 @@ export function comparison(s: TrackerState, month: string, today = todayNY()) {
       ? Math.min(...cover.map((c) => c.contiguous))
       : monthDays(month);
   const prior = previousMonth(month);
-  const available = prior >= START.slice(0, 7) && days > 0;
+  const available = prior >= firstMonth(s) && days > 0;
   const previousDays = Math.min(days, monthDays(prior));
   const priorCovered =
     available &&
@@ -184,7 +199,7 @@ export function estimate(s: TrackerState, month: string, today = todayNY()) {
       detail: `Based on ${days} aligned covered days. Includes ${money(remainingBills)} in scheduled bills without a linked payment; assumes they will occur. Excludes linked bills and one-time costs from the daily rate.`,
     };
   }
-  const prior = trackedMonths(previousMonth(month))
+  const prior = trackedMonths(previousMonth(month), firstMonth(s))
     .reverse()
     .find((m) =>
       ACCOUNTS.every((a) => accountCoverage(s, a, m, today).complete),

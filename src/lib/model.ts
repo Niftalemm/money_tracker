@@ -12,7 +12,11 @@ export const CATEGORIES = [
   'Other',
   'Uncategorized',
 ];
+// The default first month. Older statements extend tracking back to their own
+// months, so every upload counts in the calendar month it posted.
 export const START = '2026-09-01';
+/** Sanity floor for dates. */
+export const EARLIEST = '2020-01-01';
 export const TYPES = ['purchase', 'refund', 'transfer', 'income'] as const;
 export type Account = (typeof ACCOUNTS)[number];
 export type TransactionType = (typeof TYPES)[number];
@@ -52,7 +56,10 @@ export const transactionSchema = z
       (t.reimbursementCents === 0 || t.type === 'purchase'),
     'Reimbursement must fit a purchase',
   )
-  .refine((t) => t.postedDate >= START, 'Tracking starts September 1, 2026');
+  .refine(
+    (t) => t.postedDate >= EARLIEST,
+    'Dates before 2020 are not supported',
+  );
 export type Transaction = z.infer<typeof transactionSchema>;
 export const stateSchema = z
   .object({
@@ -103,7 +110,7 @@ export const stateSchema = z
           batchId: z.string().optional(),
           confirmedAt: z.iso.datetime().optional(),
         })
-        .refine((c) => c.from >= START && c.from <= c.through),
+        .refine((c) => c.from >= EARLIEST && c.from <= c.through),
     ),
     bills: z.array(
       z.object({
@@ -122,6 +129,7 @@ export const stateSchema = z
         'Capital One': z.number().int().min(1).max(31).nullable(),
       }),
       weeklyAmex: z.boolean(),
+      theme: z.enum(['system', 'light', 'dark']).optional(),
     }),
     updatedAt: z.iso.datetime().nullable(),
   })

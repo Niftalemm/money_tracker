@@ -21,3 +21,6 @@ private-data/
 *recovery-key*.txt
 *encrypted-backup*.json
 money-tracker-backup*.json
+
+# PR screenshots live in the pull request, not the repository
+docs/screenshots/

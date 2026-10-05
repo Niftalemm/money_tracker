@@ -1,6 +1,9 @@
 'use client';
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import { ZodError } from 'zod';
+import { Trash2 } from 'lucide-react';
 import {
+  EARLIEST,
   ACCOUNTS,
   TYPES,
   uid,
@@ -11,12 +14,24 @@ import {
 import { money, todayNY } from '@/lib/accounting';
 import { parseMoney } from '@/lib/imports';
 import Modal from './Modal';
+import { AccountBadge, Notice, Spinner } from './ui';
+const TYPE_HINT = {
+  purchase: 'Adds to spending',
+  refund: 'Reduces spending',
+  transfer: 'Excluded · e.g. card payment',
+  income: 'Excluded from spending',
+} as const;
+export function readableError(e: unknown, fallback: string) {
+  if (e instanceof ZodError) return e.issues[0]?.message ?? fallback;
+  return e instanceof Error ? e.message : fallback;
+}
 export default function ExpenseDialog({
   state,
   transaction,
   month,
   busy,
   save,
+  onSaved,
   onClose,
 }: {
   state: TrackerState;
@@ -24,8 +39,10 @@ export default function ExpenseDialog({
   month: string;
   busy: boolean;
   save: (next: TrackerState) => Promise<void>;
+  onSaved?: (message: string) => void;
   onClose: () => void;
 }) {
+  const formId = useId();
   const [t, setT] = useState<Transaction>(
     transaction ?? {
       id: uid(),
@@ -56,6 +73,7 @@ export default function ExpenseDialog({
     try {
       const current = transactionSchema.parse({
         ...t,
+        merchant: t.merchant.trim(),
         amountCents: parseMoney(amount),
         reimbursementCents:
           t.type === 'purchase' ? parseMoney(reimbursement) : 0,
@@ -69,11 +87,10 @@ export default function ExpenseDialog({
         .filter((r) => r.id !== current.id)
         .concat(current);
       await save(next);
+      onSaved?.(transaction ? 'Transaction saved' : 'Expense added');
       onClose();
     } catch (e) {
-      setError(
-        e instanceof Error ? e.message : 'Check the transaction fields.',
-      );
+      setError(readableError(e, 'Check the transaction fields.'));
     }
   }
   async function remove() {
@@ -87,26 +104,42 @@ export default function ExpenseDialog({
             : r,
         );
       await save(next);
+      onSaved?.('Transaction deleted');
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Delete failed.');
+      setError(readableError(e, 'Delete failed.'));
     }
   }
   return (
     <Modal
       title={transaction ? 'Edit transaction' : 'Add an expense'}
+      drawer
       onClose={onClose}
+      description={
+        transaction
+          ? `${transaction.source === 'import' ? 'Imported' : 'Manual entry'} · review every field before saving.`
+          : 'Use your keyboard’s dictation if helpful, then review every field before saving.'
+      }
+      footer={
+        <>
+          <button type="button" className="secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary" form={formId} disabled={busy}>
+            {busy && <Spinner />}
+            {busy ? 'Saving…' : 'Save transaction'}
+          </button>
+        </>
+      }
     >
-      <p className="muted">
-        Use your keyboard’s dictation if helpful, then review every field before
-        saving.
-      </p>
       {error && (
-        <p className="alert error" role="alert">
+        <Notice tone="error" role="alert">
           {error}
-        </p>
+        </Notice>
       )}
       <form
+        id={formId}
+        className="sheet-form"
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
@@ -118,41 +151,73 @@ export default function ExpenseDialog({
             required
             maxLength={1000}
             value={t.merchant}
+            autoComplete="off"
             onChange={(e) => update('merchant', e.target.value)}
           />
         </label>
         <div className="form-grid">
           <label>
+            Amount (USD, positive)
+            <span className="input-prefix">
+              <span aria-hidden>$</span>
+              <input
+                aria-label="Amount (USD, positive)"
+                inputMode="decimal"
+                placeholder="0.00"
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </span>
+          </label>
+          <label>
             Posted date
             <input
               type="date"
-              min="2026-09-01"
+              min={EARLIEST}
               required
               value={t.postedDate}
               onChange={(e) => update('postedDate', e.target.value)}
             />
           </label>
-          <label>
-            Amount (USD, positive)
-            <input
-              inputMode="decimal"
-              placeholder="0.00"
-              required
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </label>
-          <label>
-            Account / payment method
-            <select
-              value={t.account}
-              onChange={(e) => update('account', e.target.value)}
-            >
-              {ACCOUNTS.map((a) => (
-                <option key={a}>{a}</option>
-              ))}
-            </select>
-          </label>
+        </div>
+        <fieldset className="segmented-field">
+          <legend>Type</legend>
+          <div className="segmented">
+            {TYPES.map((type) => (
+              <label key={type} className={t.type === type ? 'on' : ''}>
+                <input
+                  type="radio"
+                  name="type"
+                  value={type}
+                  checked={t.type === type}
+                  onChange={() => update('type', type)}
+                />
+                {type[0].toUpperCase() + type.slice(1)}
+              </label>
+            ))}
+          </div>
+          <span className="field-hint">{TYPE_HINT[t.type]}</span>
+        </fieldset>
+        <fieldset className="segmented-field">
+          <legend>Account / payment method</legend>
+          <div className="account-choices">
+            {ACCOUNTS.map((a) => (
+              <label key={a} className={t.account === a ? 'on' : ''}>
+                <input
+                  type="radio"
+                  name="account"
+                  value={a}
+                  checked={t.account === a}
+                  onChange={() => update('account', a)}
+                />
+                <AccountBadge account={a} size="sm" />
+                {a}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="form-grid">
           <label>
             Category
             <select
@@ -161,17 +226,6 @@ export default function ExpenseDialog({
             >
               {state.categories.map((c) => (
                 <option key={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Type
-            <select
-              value={t.type}
-              onChange={(e) => update('type', e.target.value)}
-            >
-              {TYPES.map((type) => (
-                <option key={type}>{type}</option>
               ))}
             </select>
           </label>
@@ -186,20 +240,8 @@ export default function ExpenseDialog({
             </label>
           )}
         </div>
-        <p className="small muted">
-          Purchases and fees add spending. Refunds reduce it in the posted
-          month. Transfers and income are visible and excluded.
-        </p>
         {t.type === 'purchase' && (
           <>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={t.oneTime}
-                onChange={(e) => update('oneTime', e.target.checked)}
-              />
-              One-time cost · exclude from projection rate
-            </label>
             <label>
               Link scheduled bill
               <select
@@ -213,6 +255,14 @@ export default function ExpenseDialog({
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={t.oneTime}
+                onChange={(e) => update('oneTime', e.target.checked)}
+              />
+              One-time cost · exclude from projection rate
             </label>
           </>
         )}
@@ -237,7 +287,7 @@ export default function ExpenseDialog({
                   </option>
                 ))}
             </select>
-            <span className="small muted">
+            <span className="field-hint">
               Match the exact confirmed amount to prevent subtracting it twice.
             </span>
           </label>
@@ -250,39 +300,43 @@ export default function ExpenseDialog({
             onChange={(e) => update('notes', e.target.value)}
           />
         </label>
-        <div className="modal-actions">
-          {transaction && (
-            <button
-              type="button"
-              className="danger-text"
-              onClick={() => setDeleting(true)}
-            >
-              Delete
-            </button>
-          )}
-          <button type="button" className="secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button className="primary" disabled={busy}>
-            {busy ? 'Saving…' : 'Save transaction'}
-          </button>
-        </div>
-      </form>
-      {deleting && (
-        <div className="alert error">
-          <p>Delete this transaction? This changes your spending totals.</p>
-          <button className="secondary" onClick={() => setDeleting(false)}>
-            Keep transaction
-          </button>
+        <p className="fine-print">
+          Purchases and fees add spending. Refunds reduce it in the posted
+          month. Transfers and income are visible and excluded.
+        </p>
+        {transaction && !deleting && (
           <button
-            className="danger"
-            disabled={busy}
-            onClick={() => void remove()}
+            type="button"
+            className="danger-text delete-link"
+            onClick={() => setDeleting(true)}
           >
-            Confirm delete
+            <Trash2 size={16} aria-hidden />
+            Delete
           </button>
-        </div>
-      )}
+        )}
+        {deleting && (
+          <Notice tone="error">
+            <p>Delete this transaction? This changes your spending totals.</p>
+            <div className="button-row">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setDeleting(false)}
+              >
+                Keep transaction
+              </button>
+              <button
+                type="button"
+                className="danger"
+                disabled={busy}
+                onClick={() => void remove()}
+              >
+                Confirm delete
+              </button>
+            </div>
+          </Notice>
+        )}
+      </form>
     </Modal>
   );
 }

@@ -1,5 +1,6 @@
 import Papa from 'papaparse';
 import {
+  EARLIEST,
   START,
   TYPES,
   transactionSchema,
@@ -9,6 +10,7 @@ import {
   type Transaction,
   type TransactionType,
 } from './model';
+import { merchantBrand } from './merchants';
 export const MAX_FILE = 10 * 1024 * 1024;
 export type Sheet = { headers: string[]; rows: Record<string, string>[] };
 export type Mapping = {
@@ -163,6 +165,70 @@ export const normalizedMerchant = (s: string) =>
   s.toLowerCase().trim().replace(/\s+/g, ' ');
 export const fingerprint = (t: Transaction) =>
   `${t.account}|${t.postedDate}|${normalizedMerchant(t.merchant)}|${t.amountCents}|${t.type}`;
+// Entries you type yourself ("Starbucks", dated the day you buy) rarely match
+// the bank's text ("STARBUCKS STORE 1234 NEW YORK NY") or posting day, so
+// they are matched loosely. A match is only ever a suggestion to review.
+const NOISE = new Set(
+  'the and pos debit credit card purchase mobile checkcard store inc llc www com payment'.split(
+    ' ',
+  ),
+);
+const words = (s: string) =>
+  s
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !NOISE.has(w) && !/^\d+$/.test(w));
+const compact = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+export function similarMerchant(entered: string, statement: string) {
+  const brand = merchantBrand(entered);
+  if (brand && brand === merchantBrand(statement)) return true;
+  const mine = compact(entered);
+  if (mine.length >= 4 && compact(statement).includes(mine)) return true;
+  const theirs = words(statement);
+  return words(entered).some((w) =>
+    theirs.some(
+      (t) =>
+        t === w ||
+        (w.length >= 4 && t.startsWith(w)) ||
+        (t.length >= 4 && w.startsWith(t)),
+    ),
+  );
+}
+/** Banks post up to a few days after you buy (rarely, a day before). */
+export const MANUAL_WINDOW = { before: 1, after: 5 } as const;
+const day = (iso: string) => Date.parse(iso + 'T00:00:00Z') / 86_400_000;
+function manualMatch(
+  state: TrackerState,
+  claimed: Set<string>,
+  row: Transaction,
+) {
+  let best: Transaction | undefined,
+    bestScore = Infinity;
+  for (const t of state.transactions) {
+    if (
+      t.source !== 'manual' ||
+      claimed.has(t.id) ||
+      t.account !== row.account ||
+      t.amountCents !== row.amountCents ||
+      !(t.type === row.type || t.type === 'transfer' || t.type === 'income') ||
+      (row.bankId && t.bankId && t.bankId !== row.bankId)
+    )
+      continue;
+    const lag = day(row.postedDate) - day(t.postedDate),
+      sameDay = row.purchaseDate === t.postedDate;
+    if (!sameDay && (lag < -MANUAL_WINDOW.before || lag > MANUAL_WINDOW.after))
+      continue;
+    // A different description still counts when the day and amount line up.
+    const similar = similarMerchant(t.merchant, row.merchant);
+    if (!similar && !sameDay && Math.abs(lag) > 2) continue;
+    const score = (similar ? 0 : 10) + (sameDay ? 0 : Math.abs(lag));
+    if (score < bestScore) {
+      best = t;
+      bestScore = score;
+    }
+  }
+  return best;
+}
 export function previewImport(
   sheet: Sheet,
   map: Mapping,
@@ -194,8 +260,8 @@ export function previewImport(
           decision: 'skip',
         };
       const date = parseDate(r[map.date] ?? '', map.dateFormat);
-      if (date < START)
-        throw new Error('Before September 1, 2026; excluded from tracking.');
+      if (date < EARLIEST)
+        throw new Error('Before 2020; dates that old are not supported.');
       const merchant = (r[map.merchant] ?? '').trim();
       if (!merchant) throw new Error('Description is missing.');
       let signed: number;
@@ -276,7 +342,11 @@ export function previewImport(
               !(bankId && t.bankId && t.bankId !== bankId),
           )
         : undefined;
-      const match = stable ?? possible;
+      const loose =
+        !stable && !possible
+          ? manualMatch(state, claimed, transaction)
+          : undefined;
+      const match = stable ?? possible ?? loose;
       if (match) claimed.add(match.id);
       const suggestion = /payment|transfer|autopay/i.test(merchant)
         ? 'Possible card payment or transfer. Confirm type; merchant text is only a suggestion.'
@@ -290,12 +360,12 @@ export function previewImport(
         matchId: match?.id,
         matchKind: stable
           ? 'stable'
-          : possible?.source === 'manual'
+          : (possible ?? loose)?.source === 'manual'
             ? 'manual'
             : possible
               ? 'possible'
               : undefined,
-        decision: stable ? 'link' : possible ? 'review' : 'include',
+        decision: stable ? 'link' : possible || loose ? 'review' : 'include',
       };
     } catch (e) {
       return {
@@ -323,7 +393,10 @@ export function confirmImport(
     !coverage
   )
     throw new Error('No valid transactions or confirmed coverage to save.');
-  if (coverage && (coverage.from < START || coverage.from > coverage.through))
+  if (
+    coverage &&
+    (coverage.from < EARLIEST || coverage.from > coverage.through)
+  )
     throw new Error('Invalid coverage range.');
   const next = structuredClone(state),
     batchId = uid();
@@ -377,4 +450,30 @@ export function undoImport(state: TrackerState, batchId: string): TrackerState {
   next.coverage = next.coverage.filter((c) => c.batchId !== batchId);
   next.batches = next.batches.filter((b) => b.id !== batchId);
   return next;
+}
+/** Coverage to suggest after a preview: the statement period when known,
+ * otherwise the file's posted-date range. */
+export function suggestedCoverage(
+  rows: PreviewRow[],
+  period?: { from?: string; through?: string },
+) {
+  const dates = rows
+    .map((r) => r.transaction?.postedDate)
+    .filter((d): d is string => !!d)
+    .sort();
+  const from = period?.from ?? dates[0],
+    through = period?.through ?? dates.at(-1);
+  const beforeTracking =
+    !rows.some((r) => r.transaction) &&
+    (through
+      ? through < EARLIEST
+      : rows.some((r) => r.error?.startsWith('Before 2020')));
+  return {
+    beforeTracking,
+    period: period?.through
+      ? { from: period.from, through: period.through }
+      : undefined,
+    from: !from || from < EARLIEST ? (through ?? START) : from,
+    through: through ?? from ?? START,
+  };
 }

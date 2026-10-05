@@ -50,9 +50,9 @@ for (const account of ACCOUNTS)
     await expect(
       page.getByText('PDF statement totals reconciled.', { exact: false }),
     ).toBeVisible();
-    await expect(
-      page.getByText('Before September 1, 2026; excluded from tracking.'),
-    ).toBeVisible();
+    // The August row counts in August, the rest in September.
+    await expect(page.getByText('excluded from tracking')).toHaveCount(0);
+    await expect(page.getByText('2026-08-30', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Confirm import' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(outward).toEqual([]);
@@ -144,13 +144,11 @@ test('Bank of America deposit PDF reconciles additions, withdrawals, checks, and
   await page
     .getByRole('combobox', { name: 'Account', exact: true })
     .selectOption('Bank of America');
-  await page
-    .getByLabel('Transaction file')
-    .setInputFiles({
-      name: 'synthetic-bofa-deposit.pdf',
-      mimeType: 'application/pdf',
-      buffer: await syntheticPdf('Bank of America', { deposit: true }),
-    });
+  await page.getByLabel('Transaction file').setInputFiles({
+    name: 'synthetic-bofa-deposit.pdf',
+    mimeType: 'application/pdf',
+    buffer: await syntheticPdf('Bank of America', { deposit: true }),
+  });
   await expect(
     page.getByRole('heading', { name: 'Review PDF extraction and reconcile' }),
   ).toBeVisible();
@@ -169,4 +167,99 @@ test('Bank of America deposit PDF reconciles additions, withdrawals, checks, and
   await expect(page.getByLabel('Type row 2')).toHaveValue('income');
   await page.getByRole('button', { name: 'Confirm import' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+test('several statements at once: balanced ones import together, problems are set aside', async ({
+  page,
+}) => {
+  const outwardRequests: string[] = [];
+  page.on('request', (request) => {
+    if (
+      request.method() !== 'GET' ||
+      !request.url().startsWith('http://127.0.0.1:3000')
+    )
+      outwardRequests.push(request.url());
+  });
+  // Synthetic Amex statements for consecutive billing periods.
+  const amex = (closing: string, rows: string[], total: string) =>
+    syntheticPdf('Amex', {
+      lines: [
+        'American Express',
+        `Closing Date ${closing}`,
+        'Days in Billing Period: 30',
+        'Payments and Credits',
+        'Summary',
+        'Payments $0.00',
+        'Credits $0.00',
+        'New Charges',
+        'Summary',
+        `Total New Charges ${total}`,
+        'Detail',
+        ...rows,
+        'Fees',
+        'Total Fees for this Period $0.00',
+        'Interest Charged',
+        'Total Interest Charged for this Period $0.00',
+      ],
+    });
+  const july = await amex(
+      '07/24/26',
+      ['06/28/26 SYNTHETIC GROCER $42.00', '07/10/26 SYNTHETIC CAFE $6.50'],
+      '$48.50',
+    ),
+    august = await amex(
+      '08/24/26',
+      ['07/30/26 SYNTHETIC BOOKS $18.00', '08/12/26 SYNTHETIC CAFE $6.50'],
+      '$24.50',
+    ),
+    off = await amex('06/24/26', ['06/01/26 SYNTHETIC SHOP $5.00'], '$9.00');
+  const file = (name: string, buffer: Buffer) => ({
+    name,
+    mimeType: 'application/pdf',
+    buffer,
+  });
+  await page
+    .getByRole('combobox', { name: 'Account', exact: true })
+    .selectOption('Amex');
+  await page
+    .getByLabel('Transaction file')
+    .setInputFiles([
+      file('july.pdf', july),
+      file('august.pdf', august),
+      file('july-again.pdf', july),
+      file('june.pdf', off),
+    ]);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('4 statements read')).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(dialog.getByText('Balances')).toHaveCount(2);
+  await expect(dialog.getByText('Duplicate', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('Needs review', { exact: true })).toBeVisible();
+  await expect(dialog.getByText(/Doesn't balance yet/)).toBeVisible();
+  const go = page.getByRole('button', { name: 'Continue with 2 statements' });
+  await expect(go).toBeDisabled();
+  for (const label of [
+    'I checked posted dates',
+    'Each file is a complete statement',
+    'Card payments are marked as transfers',
+  ])
+    await page.getByLabel(label, { exact: false }).check();
+  await go.click();
+  await expect(
+    page.getByText('No possible duplicates. Every transaction is new.'),
+  ).toBeVisible();
+  await page
+    .getByLabel('These statements include every posted transaction', {
+      exact: false,
+    })
+    .check();
+  await page.getByRole('button', { name: 'Import 2 statements' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    page.getByText('2 Amex statements imported · 4 added'),
+  ).toBeVisible();
+  // Each purchase lands in its own calendar month.
+  await page.getByLabel('Selected month').selectOption('2026-07');
+  await expect(page.getByTestId('net-spending')).toHaveText('$24.50');
+  expect(outwardRequests).toEqual([]);
 });

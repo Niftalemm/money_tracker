@@ -33,7 +33,7 @@ function expected(statement: ReturnType<typeof fixture>) {
 }
 describe('local bank adapters and mandatory PDF reconciliation', () => {
   for (const account of ACCOUNTS)
-    it(`reconciles ${account}, retains August for totals, excludes it from tracking, and flags overlapping imports`, () => {
+    it(`reconciles ${account}, counts August rows in August, and flags overlapping imports`, () => {
       const s = fixture(account);
       expect(s.rows).toHaveLength(4);
       expect(
@@ -46,7 +46,7 @@ describe('local bank adapters and mandatory PDF reconciliation', () => {
         account,
         emptyState(),
       );
-      expect(review[0].error).toContain('Before September');
+      expect(review[0].transaction?.postedDate).toBe('2026-08-30');
       expect(review[2].transaction?.type).toBe('transfer');
       const saved = confirmImport(
         emptyState(),
@@ -55,14 +55,13 @@ describe('local bank adapters and mandatory PDF reconciliation', () => {
         undefined,
         prepared.proof,
       );
-      expect(saved.transactions).toHaveLength(3);
+      expect(saved.transactions).toHaveLength(4);
       expect(
         previewImport(prepared.sheet, prepared.map, account, saved).filter(
           (r) => r.decision === 'review',
         ),
-      ).toHaveLength(3);
-      if (account !== 'Amex')
-        expect(s.warnings).toContain('layout-unvalidated');
+      ).toHaveLength(4);
+      expect(s.warnings).not.toContain('layout-unvalidated');
     });
   it('supports a Bank of America deposit ledger with separately reconciled sections', () => {
     const s = fixture('Bank of America', true);
@@ -224,5 +223,237 @@ describe('hard PDF worker cancellation and limits', () => {
     controller.abort();
     await expect(pending).rejects.toThrow('cancelled');
     expect(terminate).toHaveBeenCalledOnce();
+  });
+
+  // Synthetic text that mirrors each bank's real statement layout (checked
+  // locally against one real statement per bank; none is stored here).
+  const lines = (texts: string[], page = 1) =>
+    texts.map((text) => ({ page, text }));
+  const settled = (s: ReturnType<typeof adaptPdf>) => {
+    const totals = reconciliation(s, s.rows, expected(s));
+    return totals.every((t) => t.matches) ? totals.map((t) => t.group) : totals;
+  };
+  it('reads the Capital One layout: cycle range, combined payments, itemized interest', () => {
+    const s = adaptPdf(
+      [
+        ...lines([
+          'Page 1 of 3',
+          'Savor Credit Card | World Elite Mastercard ending in 0000',
+          'Aug 10, 2026 - Sep 08, 2026 | 30 days in Billing Cycle',
+          'Payment Due Date For online and phone payments, the Previous Balance $100.00',
+          'Oct 03, 2026 on the statement closing date when Payments - $20.00',
+          'Other Credits $0.00',
+          'Transactions + $30.00',
+          'Cash Advances + $0.00',
+          'Fees Charged + $0.00',
+          'Interest Charged + $1.50',
+          'Pay or manage your account at capitalone.com',
+        ]),
+        ...lines(
+          [
+            '$0.00 for each Billing Cycle if your account is subject to an Interest Charge. • Account information',
+          ],
+          2,
+        ),
+        ...lines(
+          [
+            'Aug 10, 2026 - Sep 08, 2026 | 30 days in Billing Cycle',
+            'SAMPLE NAME #0000: Payments, Credits and Adjustments',
+            'Trans Date Post Date Description Amount',
+            'Sep 3 Sep 3 CAPITAL ONE AUTOPAY PYMT - $20.00',
+            'SAMPLE NAME #0000: Transactions',
+            'Trans Date Post Date Description Amount',
+            'Aug 30 Aug 31 SYNTHETIC BOOKS CITY ST $10.00',
+            'Sep 4 Sep 5 SYNTHETIC CAFE CITY ST $20.00',
+            'SAMPLE NAME #0000: Total Transactions $30.00',
+            'Total Transactions for This Period $30.00',
+            'Fees',
+            'Trans Date Post Date Description Amount',
+            'Total Fees for This Period $0.00',
+            'Interest Charged',
+            'Interest Charge on Purchases $1.50',
+            'Interest Charge on Cash Advances $0.00',
+            'Total Interest for This Period $1.50',
+            'Totals Year-to-Date',
+            'Total Fees charged $25.00',
+            'Total Interest charged $9.99',
+          ],
+          3,
+        ),
+      ],
+      'Capital One',
+      3,
+      'test',
+    );
+    expect([s.cycleFrom, s.cycleThrough]).toEqual(['2026-08-10', '2026-09-08']);
+    expect(s.warnings).toEqual([]);
+    expect(settled(s)).toEqual([
+      'purchases',
+      'payments-and-credits',
+      'fees',
+      'interest',
+    ]);
+    const [payment, books, cafe, interest] = s.rows;
+    expect(payment).toMatchObject({ type: 'transfer', date: '2026-09-03' });
+    expect(books).toMatchObject({
+      date: '2026-08-31',
+      purchaseDate: '2026-08-30',
+      dateUncertain: false,
+    });
+    expect(cafe.date).toBe('2026-09-05');
+    expect(interest).toMatchObject({
+      group: 'interest',
+      date: '2026-09-08',
+      amountCents: 150,
+      merchant: 'Interest Charge on Purchases',
+    });
+  });
+  it('reads the Bank of America ledger: card and other subtractions reconcile separately', () => {
+    const s = adaptPdf(
+      [
+        ...lines([
+          'Bank of America',
+          'Your Adv SafeBalance Banking',
+          'for August 15, 2026 to September 15, 2026 Account number: 0000 0000 0000',
+          'Beginning balance on August 15, 2026 $500.00',
+          'Deposits and other additions 300.00',
+          'ATM and debit card subtractions -45.00',
+          'Other subtractions -100.00',
+          'Service fees -0.00',
+          'Ending balance on September 15, 2026 $655.00',
+        ]),
+        ...lines(
+          [
+            'Deposits and other additions',
+            'Date Description Amount',
+            '08/28/26 SYNTHETIC EMPLOYER DES:PAYROLL 300.00',
+            'Total deposits and other additions $300.00',
+            'Withdrawals and other subtractions',
+            'ATM and debit card subtractions',
+            'Date Description Amount',
+            '08/19/26 SYNTHETIC MARKET 08/19 #000000000000 MOBILE PURCHASE -20.00',
+            'Consider writing fewer checks. Instead, pay bills using our Mobile app.',
+          ],
+          3,
+        ),
+        ...lines(
+          [
+            'Withdrawals and other subtractions - continued',
+            'ATM and debit card subtractions - continued',
+            'Date Description Amount',
+            '08/31/26 SYNTHETIC TRANSIT 08/30 MOBILE PURCHASE -25.00',
+            'Total ATM and debit card subtractions -$45.00',
+            'Other subtractions',
+            'Date Description Amount',
+            '09/02/26 SYNTHETIC LANDLORD DES:RENT -100.00',
+            'Total other subtractions -$100.00',
+          ],
+          4,
+        ),
+      ],
+      'Bank of America',
+      4,
+      'test',
+    );
+    expect(s.kind).toBe('deposit');
+    expect([s.cycleFrom, s.cycleThrough]).toEqual(['2026-08-15', '2026-09-15']);
+    expect(s.warnings).toEqual([]);
+    expect(settled(s)).toEqual([
+      'deposits',
+      'withdrawals',
+      'debit-card',
+      'fees',
+    ]);
+    expect(s.rows.map((r) => [r.date, r.group, r.dateUncertain])).toEqual([
+      ['2026-08-28', 'deposits', false],
+      ['2026-08-19', 'debit-card', false],
+      ['2026-08-31', 'debit-card', false],
+      ['2026-09-02', 'withdrawals', false],
+    ]);
+  });
+  it('reads the Amex layout: posting-date marks, separate payment detail, year-to-date totals', () => {
+    const s = adaptPdf(
+      [
+        ...lines([
+          'American Express',
+          'Closing Date 09/23/26',
+          'We will debit your bank account for your payment of $40.00 on',
+          '10/08/26. Please make sure funds are available.',
+        ]),
+        ...lines(
+          [
+            'Payments and Credits',
+            'Summary',
+            'Payments -$50.00',
+            'Credits $0.00',
+            'Total Payments and Credits -$50.00',
+            'Detail *Indicates posting date',
+            'Payments Amount',
+            '09/03/26* MOBILE PAYMENT - THANK YOU -$50.00',
+            'New Charges',
+            'Summary',
+            'Total New Charges $12.00',
+            'Detail',
+            '09/05/26 SYNTHETIC DELI CITY ST $12.00',
+          ],
+          3,
+        ),
+        ...lines(
+          [
+            'p. 7/7',
+            'Fees',
+            'Total Fees for this Period $0.00',
+            'Interest Charged',
+            'Total Interest Charged for this Period $0.00',
+            'Days in Billing Period: 30',
+            '2026 Fees and Interest Totals Year-to-Date',
+            'Total Fees in 2026 $0.00',
+            'Total Interest in 2026 $0.97',
+          ],
+          6,
+        ),
+      ],
+      'Amex',
+      6,
+      'test',
+    );
+    // Amex gives a closing date and the number of days in the period.
+    expect([s.cycleFrom, s.cycleThrough]).toEqual(['2026-08-25', '2026-09-23']);
+    expect(s.warnings).toEqual(['dates']);
+    expect(settled(s)).toEqual([
+      'purchases',
+      'payments',
+      'credits',
+      'fees',
+      'interest',
+    ]);
+    expect(s.rows.map((r) => [r.group, r.dateUncertain])).toEqual([
+      ['payments', false],
+      ['purchases', true],
+    ]);
+  });
+  it('posts credits dated before the statement period inside it, keeping the original date', () => {
+    const s = adaptPdf(
+      [
+        { page: 1, text: 'American Express' },
+        { page: 1, text: 'Closing Date 06/23/26' },
+        { page: 1, text: 'Payments and Credits' },
+        { page: 1, text: 'Detail *Indicates posting date' },
+        { page: 1, text: 'Credits Amount' },
+        { page: 1, text: '12/29/25 FRAUD CREDIT - SYNTHETIC DELIVERY -$20.00' },
+        { page: 1, text: '05/28/26 FRAUD CREDIT - SYNTHETIC DELIVERY -$9.00' },
+        { page: 2, text: 'Days in Billing Period: 30' },
+      ],
+      'Amex',
+      2,
+      'test',
+    );
+    expect(s.cycleFrom).toBe('2026-05-25');
+    expect(
+      s.rows.map((r) => [r.date, r.purchaseDate, r.dateUncertain]),
+    ).toEqual([
+      ['2026-05-25', '2025-12-29', true],
+      ['2026-05-28', undefined, true],
+    ]);
   });
 });

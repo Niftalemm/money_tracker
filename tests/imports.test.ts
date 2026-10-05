@@ -4,6 +4,8 @@ import {
   parseDate,
   parseMoney,
   previewImport,
+  similarMerchant,
+  suggestedCoverage,
   undoImport,
   validateFilename,
   type Mapping,
@@ -50,12 +52,12 @@ describe('import and deduplication', () => {
       )[0].transaction?.type,
     ).toBe('purchase');
   });
-  it('rejects invalid dates, pre-September rows, pending rows, macros, and oversized files', () => {
+  it('rejects invalid dates, pre-2020 rows, pending rows, macros, and oversized files', () => {
     expect(() => parseDate('2026-02-30', 'iso')).toThrow();
     expect(parseDate('9/30/2026', 'mdy')).toBe('2026-09-30');
     const p = previewImport(
       sheet([
-        ['2026-08-31', 'Shop', '50'],
+        ['2019-12-31', 'Shop', '50'],
         ['2026-09-03', 'Shop', '50', 'Pending'],
         ['bad', 'Shop', '3'],
         ['2026-09-03', 'Shop', '1.234'],
@@ -193,5 +195,181 @@ describe('import and deduplication', () => {
     )[0].transaction!;
     s.transactions = [{ ...row, reimbursementFor: 'missing' }];
     expect(() => stateSchema.parse(s)).toThrow();
+  });
+  describe('your own entries vs. the statement', () => {
+    const entry = (
+      merchant: string,
+      postedDate: string,
+      amount: string,
+      account: 'Amex' | 'Capital One' = 'Amex',
+    ) => ({
+      ...previewImport(
+        sheet([[postedDate, merchant, amount]]),
+        mapping,
+        account,
+        emptyState(),
+      )[0].transaction!,
+      source: 'manual' as const,
+    });
+    const withEntries = (...entries: ReturnType<typeof entry>[]) => {
+      const s = emptyState();
+      s.transactions = entries;
+      return s;
+    };
+    it('recognizes a typed name inside bank text', () => {
+      for (const [mine, bank] of [
+        ['Starbucks', 'STARBUCKS STORE 12345 NEW YORK NY'],
+        ["Trader Joe's", 'TRADER JOE S #552 QPS NEW YORK NY'],
+        ["McDonald's", "MCDONALD'S F1234 BRONX NY"],
+        ['Uber Eats', 'UBER *EATS HELP.UBER.COM CA'],
+        ['Corner deli', 'SQ *CORNER DELI NYC'],
+      ])
+        expect(similarMerchant(mine, bank)).toBe(true);
+      expect(similarMerchant('Starbucks', 'DUNKIN #3412 NEW YORK')).toBe(false);
+      expect(similarMerchant('Card store', 'MOBILE PURCHASE 1234')).toBe(false);
+    });
+    it('suggests a match for a purchase that posts days later under bank text, and linking keeps your entry', () => {
+      const s = withEntries(entry('Starbucks', '2026-09-05', '6.50'));
+      const p = previewImport(
+        sheet([['2026-09-07', 'STARBUCKS STORE 12345 NEW YORK NY', '6.50']]),
+        mapping,
+        'Amex',
+        s,
+      );
+      expect(p[0]).toMatchObject({
+        decision: 'review',
+        matchKind: 'manual',
+        matchId: s.transactions[0].id,
+      });
+      expect(() => confirmImport(s, p, 'Amex')).toThrow('Review');
+      const linked = confirmImport(
+        s,
+        p.map((r) => ({ ...r, decision: 'link' })),
+        'Amex',
+      );
+      expect(linked.transactions).toHaveLength(1);
+      expect(linked.transactions[0]).toMatchObject({
+        id: s.transactions[0].id,
+        merchant: 'Starbucks',
+        postedDate: '2026-09-05',
+      });
+      // Choosing "separate purchase" instead keeps both.
+      expect(
+        confirmImport(
+          s,
+          p.map((r) => ({ ...r, decision: 'include' })),
+          'Amex',
+        ).transactions,
+      ).toHaveLength(2);
+    });
+    it('pairs same-vendor, same-day purchases one to one', () => {
+      const s = withEntries(
+        entry('Corner deli', '2026-09-10', '8.00'),
+        entry('Corner deli', '2026-09-10', '8.00'),
+      );
+      const p = previewImport(
+        sheet([
+          ['2026-09-11', 'SQ *CORNER DELI NYC', '8.00'],
+          ['2026-09-11', 'SQ *CORNER DELI NYC', '8.00'],
+          ['2026-09-11', 'SQ *CORNER DELI NYC', '8.00'],
+        ]),
+        mapping,
+        'Amex',
+        s,
+      );
+      expect(p.map((r) => r.decision)).toEqual(['review', 'review', 'include']);
+      expect(new Set(p.slice(0, 2).map((r) => r.matchId)).size).toBe(2);
+      const linked = confirmImport(
+        s,
+        p.map((r) => (r.matchId ? { ...r, decision: 'link' } : r)),
+        'Amex',
+      );
+      expect(linked.transactions).toHaveLength(3);
+    });
+    it('a different description still prompts when the day and amount line up', () => {
+      const s = withEntries(entry('Lunch', '2026-09-12', '14.25'));
+      const [row] = previewImport(
+        sheet([['2026-09-13', 'SQ *MOROCHO NEW YORK NY', '14.25']]),
+        mapping,
+        'Amex',
+        s,
+      );
+      expect(row.matchKind).toBe('manual');
+    });
+    it('does not suggest across cards, amounts, or distant days', () => {
+      const s = withEntries(
+        entry('Starbucks', '2026-09-05', '6.50', 'Capital One'),
+        entry('Starbucks', '2026-09-20', '6.50'),
+        entry('Starbucks', '2026-09-05', '7.50'),
+        entry('Lunch', '2026-09-01', '6.50'),
+      );
+      const [row] = previewImport(
+        sheet([['2026-09-05', 'STARBUCKS STORE 12345', '6.50']]),
+        mapping,
+        'Amex',
+        s,
+      );
+      expect(row.decision).toBe('include');
+      expect(row.matchId).toBeUndefined();
+    });
+    it('uses the statement purchase date when the bank posts later than usual', () => {
+      const s = withEntries(entry('Bookshop', '2026-09-01', '20.00'));
+      const p = previewImport(
+        {
+          headers: ['Date', 'Bought', 'Description', 'Amount'],
+          rows: [
+            {
+              Date: '2026-09-09',
+              Bought: '2026-09-01',
+              Description: 'CITY BOOKS',
+              Amount: '20.00',
+            },
+          ],
+        },
+        { ...mapping, status: '', purchaseDate: 'Bought' },
+        'Amex',
+        s,
+      );
+      expect(p[0].matchKind).toBe('manual');
+    });
+  });
+  describe('suggested coverage after a preview', () => {
+    const rows = (dates: string[]) =>
+      previewImport(
+        sheet(dates.map((d) => [d, 'Shop', '5'])),
+        mapping,
+        'Amex',
+        emptyState(),
+      );
+    it('uses the statement period, including days before September', () => {
+      expect(
+        suggestedCoverage(rows(['2026-09-03']), {
+          from: '2026-08-25',
+          through: '2026-09-23',
+        }),
+      ).toMatchObject({
+        beforeTracking: false,
+        from: '2026-08-25',
+        through: '2026-09-23',
+      });
+    });
+    it("falls back to the file's posted dates", () => {
+      expect(
+        suggestedCoverage(rows(['2026-09-12', '2026-09-03', '2026-08-30'])),
+      ).toMatchObject({ from: '2026-08-30', through: '2026-09-12' });
+    });
+    it('older statements count in their own months', () => {
+      expect(
+        suggestedCoverage(rows(['2026-05-28', '2026-06-20']), {
+          from: '2026-05-25',
+          through: '2026-06-23',
+        }),
+      ).toMatchObject({
+        beforeTracking: false,
+        from: '2026-05-25',
+        through: '2026-06-23',
+      });
+      expect(suggestedCoverage(rows(['2019-06-01'])).beforeTracking).toBe(true);
+    });
   });
 });
