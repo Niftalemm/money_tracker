@@ -4,15 +4,15 @@
 :root {
   /* Indigo carries navigation and actions; emerald marks money in, coverage,
      and success. Cool neutrals keep the page quiet. */
-  --bg: #f6f7fb;
+  --bg: #f9f8f5;
   --surface: #ffffff;
-  --surface-2: #f8f9fc;
-  --ink: #0f172a;
-  --ink-2: #334155;
-  --muted: #5b6578;
-  --faint: #9aa3b5;
-  --border: #e6e9f0;
-  --border-strong: #d4d9e4;
+  --surface-2: #f6f5f1;
+  --ink: #1b1b1a;
+  --ink-2: #3d3c39;
+  --muted: #6b6964;
+  --faint: #a3a19b;
+  --border: #e9e7e1;
+  --border-strong: #d9d6ce;
   --brand-900: #1e1b4b;
   --brand-800: #312e81;
   --brand-700: #4338ca;
@@ -38,17 +38,17 @@
   --info: #1d5c87;
   --info-bg: #ebf3fa;
   --info-border: #cadff0;
-  --radius: 18px;
+  --radius: 14px;
   --radius-sm: 12px;
-  --shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -18px rgba(15, 23, 42, 0.18);
-  --shadow-lg: 0 28px 64px -18px rgba(30, 27, 75, 0.35);
-  --ring: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  --shadow: none;
+  --shadow-lg: 0 24px 60px -20px rgba(27, 27, 26, 0.28);
+  --ring: 0 0 0 3px rgba(99, 102, 241, 0.22);
   --bar: 64px;
   --tabbar: 68px;
   --font:
-    'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, -apple-system,
-    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    Roboto, Arial, sans-serif;
+  --serif: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
   color-scheme: light;
 }
 *,
@@ -163,7 +163,7 @@ button:disabled {
   padding: 0 16px;
   border-radius: 11px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
   transition:
@@ -267,7 +267,7 @@ label {
   gap: 6px;
   margin-bottom: 14px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink-2);
 }
 input,
@@ -362,7 +362,7 @@ legend {
   padding: 0;
   margin-bottom: 6px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink-2);
 }
 .input-prefix {
@@ -374,7 +374,7 @@ legend {
   position: absolute;
   left: 12px;
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 500;
   pointer-events: none;
 }
 .input-prefix input {
@@ -396,7 +396,7 @@ legend {
   min-height: 38px;
   margin: 0;
   border-radius: 9px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
   cursor: pointer;
 }
@@ -548,7 +548,7 @@ legend {
 }
 .top-link[aria-current='page'] {
   color: var(--ink);
-  font-weight: 600;
+  font-weight: 500;
 }
 .top-link[aria-current='page']::after {
   content: '';
@@ -667,6 +667,9 @@ legend {
   line-height: 1.15;
   font-weight: 500;
   letter-spacing: -0.03em;
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
 }
 .page-title p {
   margin-top: 4px;
@@ -697,7 +700,7 @@ legend {
   padding: 0 6px;
   border: 0;
   background: none;
-  font-weight: 600;
+  font-weight: 500;
   text-align: center;
   text-align-last: center;
   box-shadow: none;
@@ -742,7 +745,7 @@ legend {
   border-radius: 12px;
   background: var(--brand-900);
   color: #fff;
-  font-weight: 600;
+  font-weight: 500;
   box-shadow: var(--shadow-lg);
   animation: rise 0.2s ease-out;
 }
@@ -780,7 +783,7 @@ legend {
 }
 .card-title {
   font-size: 15.5px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 .card-subtitle {
@@ -800,7 +803,7 @@ legend {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
 }
 .stat-amount {
@@ -809,6 +812,9 @@ legend {
   font-weight: 400;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
 }
 .stat-amount.credit {
   color: var(--credit);
@@ -822,7 +828,7 @@ legend {
   gap: 8px;
   margin: 20px 0 8px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -833,7 +839,7 @@ legend {
   border-radius: 99px;
   background: var(--surface-2);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
   letter-spacing: 0;
 }
@@ -847,7 +853,7 @@ legend {
   background: var(--surface-2);
   color: var(--ink-2);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 .pill.good {
@@ -875,7 +881,7 @@ legend {
   align-items: center;
   gap: 2px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -970,7 +976,7 @@ legend {
 }
 .empty-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .empty-text {
   max-width: 38ch;
@@ -989,7 +995,7 @@ legend {
   align-items: center;
   gap: 8px;
   color: var(--credit);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Category / account tones */
@@ -1061,7 +1067,7 @@ legend {
   background: var(--tone-bg);
   color: var(--tone);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   flex-shrink: 0;
 }
 .acct-badge {
@@ -1122,6 +1128,9 @@ legend {
   font-weight: 300;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.02em;
 }
 .hero-sub {
   display: flex;
@@ -1152,7 +1161,7 @@ legend {
 }
 .chart-tip-title {
   margin-bottom: 4px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .chart-tip p:not(.chart-tip-title) {
   display: flex;
@@ -1244,7 +1253,7 @@ legend {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 500;
 }
 .mini-value {
   font-weight: 500;
@@ -1300,7 +1309,7 @@ button.rank-row:hover {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  font-weight: 600;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .rank-share {
@@ -1345,7 +1354,7 @@ button.rank-row:hover {
   background: var(--surface-2);
   border: 1px solid var(--border);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
 }
 .month-list {
@@ -1371,7 +1380,7 @@ button.rank-row:hover {
 .month-name {
   display: flex;
   flex-direction: column;
-  font-weight: 600;
+  font-weight: 500;
 }
 .month-cover {
   display: block;
@@ -1406,7 +1415,7 @@ button.rank-row:hover {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  font-weight: 600;
+  font-weight: 500;
 }
 .bill-name span {
   font-size: 12px;
@@ -1453,13 +1462,15 @@ button.rank-row:hover {
   flex: 1;
   min-width: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .account-amount {
   font-size: 24px;
   font-weight: 400;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  font-family: var(--serif);
+  font-weight: 400;
 }
 .account-amount span {
   font-size: 13px;
@@ -1472,7 +1483,7 @@ button.rank-row:hover {
   flex-direction: column;
   gap: 2px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink-2);
 }
 .account-cover span {
@@ -1481,7 +1492,7 @@ button.rank-row:hover {
 }
 .gaps summary {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ink-2);
   cursor: pointer;
 }
@@ -1500,7 +1511,7 @@ button.rank-row:hover {
   background: var(--warn-bg);
   color: var(--warn);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .account-tile > .text-button {
   align-self: flex-start;
@@ -1627,7 +1638,7 @@ button.rank-row:hover {
   background: var(--surface);
   color: var(--ink-2);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .chip:has(.acct-badge) {
   padding-left: 8px;
@@ -1690,7 +1701,7 @@ button.rank-row:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 500;
 }
 .tx-meta {
   display: flex;
@@ -1748,7 +1759,7 @@ button.rank-row:hover {
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1757,7 +1768,7 @@ button.rank-row:hover {
   font-variant-numeric: tabular-nums;
   text-transform: none;
   letter-spacing: 0;
-  font-weight: 600;
+  font-weight: 500;
 }
 .pager {
   display: flex;
@@ -1812,12 +1823,12 @@ button.rank-row:hover {
 }
 .data-table thead th {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
 }
 .data-table tbody th {
-  font-weight: 600;
+  font-weight: 500;
 }
 .data-table.numeric td,
 .data-table.numeric thead th:not(:first-child) {
@@ -1853,7 +1864,7 @@ button.rank-row:hover {
 }
 .bill-info .warn-text {
   color: var(--warn);
-  font-weight: 600;
+  font-weight: 500;
 }
 .bill-side {
   display: flex;
@@ -1884,7 +1895,7 @@ button.rank-row:hover {
   padding: 10px 0;
   border-top: 1px solid var(--border);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .range-dates,
 .history-meta {
@@ -1904,7 +1915,7 @@ button.rank-row:hover {
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--credit);
 }
 .category-chips {
@@ -1921,7 +1932,7 @@ button.rank-row:hover {
   border: 1px solid var(--border);
   border-radius: 99px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .inline-form {
   display: flex;
@@ -1947,7 +1958,7 @@ button.rank-row:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 500;
 }
 .rule-row select {
   grid-area: select;
@@ -2041,6 +2052,8 @@ button.rank-row:hover {
   font-weight: 500;
   letter-spacing: -0.015em;
   overflow-wrap: anywhere;
+  font-family: var(--serif);
+  font-weight: 400;
 }
 .modal-description {
   margin-top: 4px;
@@ -2101,7 +2114,7 @@ button.rank-row:hover {
   background: none;
   color: var(--ink);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   text-align: left;
 }
 .more-link:hover,
@@ -2152,7 +2165,7 @@ button.rank-row:hover {
   padding-top: 10px;
   border-top: 3px solid var(--border);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
 }
 .stepper li.done {
@@ -2242,7 +2255,7 @@ button.rank-row:hover {
 }
 .file-drop-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .file-drop-hint {
   max-width: 46ch;
@@ -2361,7 +2374,7 @@ button.rank-row:hover {
 }
 .cell-strong {
   display: block;
-  font-weight: 600;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .cell-sub {
@@ -2376,17 +2389,17 @@ button.rank-row:hover {
   gap: 4px;
   margin-top: 4px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--warn);
 }
 .row-num {
   display: block;
   margin-bottom: 4px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .data-table td.num {
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 tr.row-review {
@@ -2415,13 +2428,13 @@ tr.row-muted td {
   gap: 8px;
   margin-top: 14px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--warn);
 }
 .review-head h3 {
   margin-bottom: 4px;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .review-stats {
   display: flex;
@@ -2454,7 +2467,7 @@ tr.row-muted td {
   align-items: flex-start;
   gap: 6px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .total-status svg {
   flex-shrink: 0;
@@ -2476,7 +2489,7 @@ tr.row-muted td {
 .checklist legend {
   padding: 0 6px;
   margin-left: -6px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .checklist .check {
   margin-bottom: 6px;
@@ -2494,31 +2507,10 @@ tr.row-muted td {
   display: flex;
   flex-direction: column;
   gap: 40px;
-  padding: 36px 56px 140px;
-  overflow: hidden;
-  background:
-    radial-gradient(
-      760px 480px at -8% -12%,
-      rgba(16, 185, 129, 0.55) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      700px 520px at 110% 110%,
-      rgba(99, 102, 241, 0.55) 0%,
-      transparent 60%
-    ),
-    linear-gradient(155deg, #312e81 0%, #1e1b4b 100%);
-  color: #fff;
-}
-.welcome-hero .brand-name {
-  color: #fff;
-}
-.welcome-hero .brand-mark {
-  border-radius: 9px;
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.4);
-}
-.welcome-hero .brand-name span {
-  color: #a7f3d0;
+  padding: 36px 56px 56px;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
 }
 .welcome-copy {
   max-width: 500px;
@@ -2527,23 +2519,26 @@ tr.row-muted td {
 .welcome-kicker {
   margin-bottom: 14px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #a7f3d0;
+  color: var(--brand-700);
 }
 .welcome h1 {
   font-size: 56px;
   line-height: 1.05;
   font-weight: 400;
   letter-spacing: -0.045em;
+  font-family: var(--serif);
+  font-weight: 400;
+  letter-spacing: -0.025em;
 }
 .intro {
   max-width: 40ch;
   margin-top: 18px;
   font-size: 17px;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--muted);
 }
 .welcome-points {
   display: grid;
@@ -2561,18 +2556,19 @@ tr.row-muted td {
   box-sizing: content-box;
   padding: 8px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #a7f3d0;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 1px solid var(--border);
 }
 .welcome-points span {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
 }
 .welcome-points strong {
   display: block;
   margin-bottom: 1px;
   font-size: 15px;
-  color: #fff;
+  color: var(--ink);
 }
 .welcome-art {
   position: absolute;
@@ -2604,6 +2600,8 @@ tr.row-muted td {
   font-size: 26px;
   font-weight: 500;
   letter-spacing: -0.02em;
+  font-family: var(--serif);
+  font-weight: 400;
 }
 .auth-lead {
   margin: 6px 0 22px;
@@ -2624,7 +2622,7 @@ tr.row-muted td {
   gap: 12px;
   margin: 24px 0 16px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -2642,7 +2640,7 @@ tr.row-muted td {
   margin-bottom: 18px;
   list-style: none;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
 }
 .auth-steps li {
@@ -2801,7 +2799,7 @@ tr.row-muted td {
     background: none;
     color: var(--muted);
     font-size: 10.5px;
-    font-weight: 600;
+    font-weight: 500;
   }
   .tab span {
     white-space: nowrap;
@@ -3140,7 +3138,7 @@ tr.row-muted td {
     content: attr(data-label);
     padding-top: 2px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--muted);
   }
   .cards-on-phone.editable td::before {
@@ -3193,4 +3191,58 @@ tr.row-muted td {
 }
 .delete-link {
   margin: 4px 0 0 -10px;
+}
+
+/* ---------- Minimal pass: neutral icon tiles, one accent, quiet chrome ---------- */
+.cat-icon {
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.rank-bar .progress-fill {
+  background: var(--brand-500);
+}
+.merchant-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.merchant-icon.brand {
+  background: var(--surface);
+}
+.merchant-icon.brand.dark {
+  border-color: #1b1b1a;
+  background: #1b1b1a;
+}
+.rank-row > .merchant-icon {
+  grid-area: icon;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+.rank-row > .merchant-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.top-link[aria-current='page']::after {
+  background: var(--ink);
+}
+.demo-banner {
+  border-bottom-color: var(--border);
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.toast {
+  background: var(--ink);
+}
+.tabbar .tab-add-circle {
+  background: var(--brand-700);
+}
+.card-title {
+  font-weight: 500;
 }

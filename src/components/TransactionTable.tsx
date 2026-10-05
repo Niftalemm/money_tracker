@@ -1,9 +1,10 @@
 'use client';
 import { ChevronRight, Inbox } from 'lucide-react';
 import { money, net } from '@/lib/accounting';
+import MerchantIcon from './MerchantIcon';
 import { dayGroups, shortDate } from '@/lib/insights';
 import type { Transaction } from '@/lib/model';
-import { AccountBadge, CategoryIcon, EmptyState, MerchantAvatar } from './ui';
+import { AccountBadge, CategoryIcon, EmptyState } from './ui';
 function typeLabel(t: Transaction) {
   if (t.reimbursementFor) return 'Matched reimbursement · excluded';
   if (t.type === 'income') return 'Income · excluded';
@@ -39,7 +40,7 @@ function Row({
         aria-describedby={`tx-${t.id}`}
         onClick={() => onEdit(t)}
       >
-        <MerchantAvatar name={t.merchant} category={t.category} />
+        <MerchantIcon name={t.merchant} category={t.category} />
         <span className="tx-main">
           <span className="tx-merchant">{t.merchant}</span>
           <span className="tx-meta">

@@ -46,11 +46,14 @@ export function categoryTone(name: string) {
 export function CategoryIcon({
   name,
   size = 'md',
+  bare = false,
 }: {
   name: string;
   size?: 'sm' | 'md';
+  bare?: boolean;
 }) {
   const Icon = CATEGORY_META[name]?.[0] ?? Tag;
+  if (bare) return <Icon size={18} strokeWidth={1.75} aria-hidden />;
   return (
     <span className={`cat-icon ${size} ${categoryTone(name)}`} aria-hidden>
       <Icon size={size === 'sm' ? 13 : 16} strokeWidth={2} />
@@ -68,20 +71,6 @@ export function AccountBadge({
   return (
     <span className={`acct-badge ${size}`} aria-hidden>
       <BankLogo account={account} size={BADGE_SIZE[size]} />
-    </span>
-  );
-}
-export function MerchantAvatar({
-  name,
-  category,
-}: {
-  name: string;
-  category: string;
-}) {
-  const letter = name.trim().charAt(0).toUpperCase() || '?';
-  return (
-    <span className={`avatar ${categoryTone(category)}`} aria-hidden>
-      {letter}
     </span>
   );
 }

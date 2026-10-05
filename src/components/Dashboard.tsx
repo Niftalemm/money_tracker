@@ -325,17 +325,6 @@ export default function Dashboard({
         </div>
         {categories.length ? (
           <>
-            <div className="share-bar" aria-hidden>
-              {categories
-                .filter((c) => c.share > 0)
-                .map((c) => (
-                  <span
-                    key={c.name}
-                    className={categoryTone(c.name)}
-                    style={{ width: `${c.share * 100}%` }}
-                  />
-                ))}
-            </div>
             <ul className={comp.available ? 'rank-list' : 'rank-list no-delta'}>
               {categories.slice(0, TOP).map((g) => (
                 <li key={g.name}>

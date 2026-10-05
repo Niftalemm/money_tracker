@@ -77,11 +77,11 @@ export function demoState(): TrackerState {
   add('2026-09-15', 'Internet', 6500, 'Utilities', 'Bank of America', {
     billId: 'internet',
   });
-  add('2026-09-17', 'Streaming', 1599, 'Subscriptions', 'Amex');
-  add('2026-09-20', 'Desk lamp', 6900, 'Shopping', 'Capital One', {
+  add('2026-09-17', 'Netflix', 1599, 'Subscriptions', 'Amex');
+  add('2026-09-20', 'Target', 6900, 'Shopping', 'Capital One', {
     oneTime: true,
   });
-  add('2026-09-25', 'Desk lamp return', 2000, 'Shopping', 'Capital One', {
+  add('2026-09-25', 'Target return', 2000, 'Shopping', 'Capital One', {
     type: 'refund',
   });
   add('2026-09-26', 'Pharmacy', 1840, 'Health', 'Amex');
@@ -96,7 +96,7 @@ export function demoState(): TrackerState {
     billId: 'rent',
   });
   add('2026-10-02', 'Fresh Market', 9250, 'Groceries', 'Amex');
-  add('2026-10-03', 'Corner Café', 2800, 'Dining', 'Capital One');
+  add('2026-10-03', 'Starbucks', 2800, 'Dining', 'Capital One');
   s.coverage = ['Amex', 'Bank of America', 'Capital One'].flatMap((account) => [
     {
       id: uid(),

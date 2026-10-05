@@ -164,10 +164,18 @@ test('the font is self-hosted and bank logos render without outside requests', a
   await expect(
     page.getByRole('group', { name: 'Filter account' }).locator('.bank-logo'),
   ).toHaveCount(3);
+  await expect(
+    page
+      .getByRole('button', { name: 'Edit Netflix' })
+      .locator('.merchant-icon.brand'),
+  ).toHaveAttribute('title', 'Netflix');
   expect(
     await page.evaluate(async () => {
       await document.fonts.ready;
-      return document.fonts.check('16px "Plus Jakarta Sans Variable"');
+      return (
+        document.fonts.check('16px "Inter Variable"') &&
+        document.fonts.check('32px "Source Serif 4 Variable"')
+      );
     }),
   ).toBe(true);
   expect(

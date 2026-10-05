@@ -13,6 +13,7 @@ import {
 import { cashFlow, categoryShares, monthShort } from '@/lib/insights';
 import type { TrackerState, Transaction } from '@/lib/model';
 import { CashFlowChart } from './Charts';
+import MerchantIcon from './MerchantIcon';
 import CategoryDetail from './CategoryDetail';
 import { CategoryIcon, Delta, EmptyState, Progress, categoryTone } from './ui';
 export default function CashFlow({
@@ -206,9 +207,9 @@ export default function CashFlow({
           </div>
           {merchants.length ? (
             <ol className="rank-list numbered">
-              {merchants.map((m, i) => (
+              {merchants.map((m) => (
                 <li key={m.name} className="rank-row static">
-                  <span className="rank-index">{i + 1}</span>
+                  <MerchantIcon name={m.name} category="Other" />
                   <span className="rank-name">
                     {m.name}
                     <span className="rank-share">{entries(m.name)}</span>

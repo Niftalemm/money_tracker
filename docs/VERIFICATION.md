@@ -1,13 +1,13 @@
 # Verification record · October 5, 2026
 
-| Check                                                 | Result                   |
-| ----------------------------------------------------- | ------------------------ |
-| TypeScript                                            | Passed                   |
-| Unit/integration tests                                | 63 passed across 9 files |
-| Desktop/phone production browser checks               | 46 passed                |
-| Next.js production build                              | Passed                   |
-| Full dependency audit, including development tools    | 0 known vulnerabilities  |
-| Repository private-file/key scan and whitespace check | Passed                   |
+| Check                                                 | Result                    |
+| ----------------------------------------------------- | ------------------------- |
+| TypeScript                                            | Passed                    |
+| Unit/integration tests                                | 66 passed across 10 files |
+| Desktop/phone production browser checks               | 46 passed                 |
+| Next.js production build                              | Passed                    |
+| Full dependency audit, including development tools    | 0 known vulnerabilities   |
+| Repository private-file/key scan and whitespace check | Passed                    |
 
 Unit/integration checks execute **both shipped migrations** in local PostgreSQL (PGlite), using compatible `auth.uid()`/`auth.jwt()` helpers. They cover anonymous/second-user denial, owner without MFA, MFA loss after an existing save, restricted direct writes, RLS/trigger behavior under accidental write grants, strict nested encrypted payload types, and competing device saves. Browser storage-operation tests recheck user/MFA/owner gates before every read and write. **These are not tests of live Supabase tokens or project configuration.**
 

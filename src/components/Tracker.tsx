@@ -121,10 +121,6 @@ function Workspace(ctx: Context) {
             ))}
           </nav>
           <div className="topbar-actions">
-            <span className="vault-chip">
-              <ShieldCheck size={14} aria-hidden />
-              {demo ? 'Demo · synthetic data' : 'Encrypted · auto-locks'}
-            </span>
             <button
               type="button"
               className="icon-button top-settings"

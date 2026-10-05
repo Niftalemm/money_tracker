@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 // Self-hosted from node_modules: the CSP allows fonts only from this origin.
-import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/inter';
+import '@fontsource-variable/source-serif-4';
 import './globals.css';
 export const metadata: Metadata = {
   title: 'Money Tracker',

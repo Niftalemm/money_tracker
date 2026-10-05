@@ -301,32 +301,6 @@ export default function AuthGate({
             </li>
           </ul>
         </div>
-        <svg
-          className="welcome-art"
-          viewBox="0 0 320 120"
-          preserveAspectRatio="none"
-          aria-hidden
-          focusable="false"
-        >
-          <path
-            d="M0 96 C40 90 60 70 96 74 S150 40 186 46 S250 18 320 10 L320 120 L0 120Z"
-            fill="rgba(255,255,255,0.08)"
-          />
-          <path
-            d="M0 96 C40 90 60 70 96 74 S150 40 186 46 S250 18 320 10"
-            fill="none"
-            stroke="rgba(255,255,255,0.7)"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-          <path
-            d="M0 104 C50 102 80 92 120 94 S200 80 240 78 S290 70 320 66"
-            fill="none"
-            stroke="rgba(255,255,255,0.35)"
-            strokeWidth="2"
-            strokeDasharray="6 6"
-          />
-        </svg>
       </section>
       <section className="welcome-panel">
         <div className="auth-card">

@@ -11,6 +11,7 @@ import {
 import type { TrackerState, Transaction } from '@/lib/model';
 import Modal from './Modal';
 import TransactionList from './TransactionTable';
+import MerchantIcon from './MerchantIcon';
 import { CategoryIcon, Delta, Progress, categoryTone } from './ui';
 export default function CategoryDetail({
   state,
@@ -75,7 +76,7 @@ export default function CategoryDetail({
         </span>
       </div>
       <h3 className="section-label">Merchants</h3>
-      <ul className="rank-list plain">
+      <ul className="rank-list">
         {merchants.map((g) => (
           <li key={g.name}>
             <button
@@ -84,6 +85,7 @@ export default function CategoryDetail({
               aria-pressed={merchant === g.name}
               onClick={() => setMerchant(merchant === g.name ? null : g.name)}
             >
+              <MerchantIcon name={g.name} category={category} />
               <span className="rank-name">{g.name}</span>
               <span className="rank-bar">
                 <Progress
