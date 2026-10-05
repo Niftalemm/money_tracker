@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import PdfReview from './PdfReview';
+import BatchImport from './BatchImport';
+import { MAX_BATCH } from '@/lib/batch';
 import { parsePdf } from '@/lib/pdf-client';
 import type { PdfStatement } from '@/lib/pdf-types';
 import type { PdfProof } from '@/lib/pdf-review';
@@ -84,6 +86,8 @@ export default function ImportDialog({
     signs: 'positive-purchase',
   });
   const [reviewPage, setReviewPage] = useState(0);
+  // Several PDFs chosen at once go through the batch flow.
+  const [batch, setBatch] = useState<File[] | null>(null);
   const [pdf, setPdf] = useState<PdfStatement | null>(null),
     [proof, setProof] = useState<PdfProof | undefined>();
   const controller = useRef<AbortController | null>(null),
@@ -149,7 +153,7 @@ export default function ImportDialog({
   }
   const valid = rows?.filter((r) => r.transaction) ?? [],
     uncertain = rows?.filter((r) => r.decision === 'review').length ?? 0;
-  const step = rows ? 2 : sheet || pdf ? 1 : 0;
+  const step = rows ? 2 : sheet || pdf || batch ? 1 : 0;
   return (
     <Modal
       title="Upload transactions"
@@ -176,7 +180,20 @@ export default function ImportDialog({
           {error}
         </Notice>
       )}
-      {!rows ? (
+      {batch ? (
+        <BatchImport
+          files={batch}
+          account={account}
+          state={state}
+          busy={busy}
+          save={save}
+          onSaved={(message) => {
+            onSaved?.(message);
+            onClose();
+          }}
+          onCancel={() => setBatch(null)}
+        />
+      ) : !rows ? (
         <>
           {step === 0 ? (
             <>
@@ -217,10 +234,11 @@ export default function ImportDialog({
                       <FileUp size={24} />
                     </span>
                     <p className="file-drop-title">
-                      Choose a statement PDF, CSV, or XLSX
+                      Choose statement PDFs, a CSV, or an XLSX
                     </p>
                     <p className="file-drop-hint">
-                      Drop a file here or tap to browse · up to 10 MB
+                      Pick one or several {account} statements at once · up to
+                      10 MB each
                     </p>
                   </>
                 )}
@@ -229,10 +247,28 @@ export default function ImportDialog({
                   aria-label="Transaction file"
                   type="file"
                   accept=".pdf,.csv,.xlsx"
+                  multiple
                   disabled={loading}
                   onChange={async (e) => {
-                    const file = e.target.files?.[0];
+                    const chosen = [...(e.target.files ?? [])];
+                    const file = chosen[0];
                     if (!file) return;
+                    if (chosen.length > 1) {
+                      e.target.value = '';
+                      if (chosen.some((f) => !/\.pdf$/i.test(f.name)))
+                        setError(
+                          'Choose several statement PDFs, or one CSV or XLSX file at a time.',
+                        );
+                      else if (chosen.length > MAX_BATCH)
+                        setError(
+                          `Choose up to ${MAX_BATCH} statements at a time.`,
+                        );
+                      else {
+                        setError('');
+                        setBatch(chosen);
+                      }
+                      return;
+                    }
                     controller.current?.abort();
                     const active = new AbortController();
                     controller.current = active;

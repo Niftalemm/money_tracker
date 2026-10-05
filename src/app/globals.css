@@ -2481,6 +2481,89 @@ tr.row-muted td {
 .coverage-confirm .fine-print {
   margin-bottom: 12px;
 }
+/* ---------- Several statements at once ---------- */
+.batch > .text-button {
+  margin-bottom: 8px;
+}
+.batch-list,
+.batch-decisions {
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.batch-list li,
+.batch-decisions li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+}
+.batch-list li:first-child,
+.batch-decisions li:first-child {
+  border-top: 0;
+}
+.batch-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.batch-item.ready .batch-icon {
+  color: var(--mint-text);
+}
+.batch-item.review .batch-icon,
+.batch-item.failed .batch-icon {
+  color: var(--warn, #b45309);
+}
+.batch-text,
+.batch-decision-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.batch-text > span,
+.batch-decision-text > span {
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.batch-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+.batch-decisions select {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 240px;
+}
+@media (max-width: 700px) {
+  .batch-list li,
+  .batch-decisions li {
+    flex-wrap: wrap;
+  }
+  .batch-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .batch-decisions select {
+    width: 100%;
+    max-width: none;
+  }
+}
 .blocking-hint {
   display: flex;
   align-items: center;

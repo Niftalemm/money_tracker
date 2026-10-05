@@ -53,6 +53,8 @@ export async function syntheticPdf(
     deposit?: boolean;
     merchant?: string;
     blank?: boolean;
+    /** Exact statement text, one line each (replaces the default layout). */
+    lines?: string[];
   } = {},
 ) {
   const doc = await PDFDocument.create();
@@ -60,14 +62,16 @@ export async function syntheticPdf(
   for (let i = 0; i < (options.pages ?? 1); i++) {
     const page = doc.addPage([612, 792]);
     if (!options.blank && i === 0)
-      syntheticLines(account, options.missing, options.deposit).forEach(
-        (line, n) =>
-          page.drawText(
-            options.merchant && line.includes('September store')
-              ? line.replace('Synthetic September store', options.merchant)
-              : line,
-            { x: 40, y: 750 - n * 25, size: 10, font },
-          ),
+      (
+        options.lines ??
+        syntheticLines(account, options.missing, options.deposit)
+      ).forEach((line, n) =>
+        page.drawText(
+          options.merchant && line.includes('September store')
+            ? line.replace('Synthetic September store', options.merchant)
+            : line,
+          { x: 40, y: 750 - n * 25, size: 10, font },
+        ),
       );
   }
   if (options.script)

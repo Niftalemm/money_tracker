@@ -3,8 +3,8 @@
 | Check                                                 | Result                    |
 | ----------------------------------------------------- | ------------------------- |
 | TypeScript                                            | Passed                    |
-| Unit/integration tests                                | 83 passed across 11 files |
-| Desktop/phone production browser checks               | 62 passed                 |
+| Unit/integration tests                                | 87 passed across 12 files |
+| Desktop/phone production browser checks               | 64 passed                 |
 | Next.js production build                              | Passed                    |
 | Full dependency audit, including development tools    | 0 known vulnerabilities   |
 | Repository private-file/key scan and whitespace check | Passed                    |
