@@ -1,5 +1,6 @@
 import Papa from 'papaparse';
 import {
+  EARLIEST,
   START,
   TYPES,
   transactionSchema,
@@ -259,8 +260,8 @@ export function previewImport(
           decision: 'skip',
         };
       const date = parseDate(r[map.date] ?? '', map.dateFormat);
-      if (date < START)
-        throw new Error('Before September 1, 2026; excluded from tracking.');
+      if (date < EARLIEST)
+        throw new Error('Before 2020; dates that old are not supported.');
       const merchant = (r[map.merchant] ?? '').trim();
       if (!merchant) throw new Error('Description is missing.');
       let signed: number;
@@ -392,7 +393,10 @@ export function confirmImport(
     !coverage
   )
     throw new Error('No valid transactions or confirmed coverage to save.');
-  if (coverage && (coverage.from < START || coverage.from > coverage.through))
+  if (
+    coverage &&
+    (coverage.from < EARLIEST || coverage.from > coverage.through)
+  )
     throw new Error('Invalid coverage range.');
   const next = structuredClone(state),
     batchId = uid();
@@ -448,7 +452,7 @@ export function undoImport(state: TrackerState, batchId: string): TrackerState {
   return next;
 }
 /** Coverage to suggest after a preview: the statement period when known,
- * otherwise the file's posted-date range, never before tracking starts. */
+ * otherwise the file's posted-date range. */
 export function suggestedCoverage(
   rows: PreviewRow[],
   period?: { from?: string; through?: string },
@@ -462,14 +466,14 @@ export function suggestedCoverage(
   const beforeTracking =
     !rows.some((r) => r.transaction) &&
     (through
-      ? through < START
-      : rows.some((r) => r.error?.startsWith('Before September 1')));
+      ? through < EARLIEST
+      : rows.some((r) => r.error?.startsWith('Before 2020')));
   return {
     beforeTracking,
     period: period?.through
       ? { from: period.from, through: period.through }
       : undefined,
-    from: !from || from < START ? START : from,
-    through: !through || through < START ? START : through,
+    from: !from || from < EARLIEST ? (through ?? START) : from,
+    through: through ?? from ?? START,
   };
 }

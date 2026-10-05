@@ -429,6 +429,16 @@ export function adaptPdf(
       }
     }
   }
+  // Nothing posts outside its statement period. Amex lists credits (fraud
+  // credits, refunds) under the original purchase date, sometimes months
+  // earlier; keep that as the purchase date and post the row in the period.
+  if (cycleFrom && cycleThrough)
+    for (const row of rows)
+      if (row.date && (row.date < cycleFrom || row.date > cycleThrough)) {
+        row.purchaseDate ??= row.date;
+        row.date = row.date < cycleFrom ? cycleFrom : cycleThrough;
+        row.dateUncertain = true;
+      }
   // Capital One lists payments and credits separately in its summary but in one
   // detail section; their sum is the statement's own combined total.
   const single = (group: PdfGroup) => {

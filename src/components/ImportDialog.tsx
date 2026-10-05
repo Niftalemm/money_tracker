@@ -15,7 +15,7 @@ import {
 import Modal from './Modal';
 import {
   ACCOUNTS,
-  START,
+  EARLIEST,
   TYPES,
   type Account,
   type TrackerState,
@@ -597,10 +597,10 @@ export default function ImportDialog({
                 <strong>
                   {coverage.period
                     ? `This statement covers ${shortDate(coverage.period.from ?? coverage.period.through).replace(/^\w+, /, '')} – ${shortDate(coverage.period.through).replace(/^\w+, /, '')}, ${coverage.period.through.slice(0, 4)}.`
-                    : 'Every row in this file is dated before September 1, 2026.'}
+                    : 'Every row in this file is dated before 2020.'}
                 </strong>{' '}
-                Tracking starts September 1, 2026, so nothing from it is added.
-                Upload statements that include September or later.
+                Dates before 2020 are not supported, so nothing from it is
+                added.
               </p>
             </Notice>
           ) : (
@@ -619,7 +619,7 @@ export default function ImportDialog({
                   Covered from
                   <input
                     type="date"
-                    min={START}
+                    min={EARLIEST}
                     value={from}
                     onChange={(e) => setFrom(e.target.value)}
                   />

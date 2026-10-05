@@ -31,6 +31,7 @@ import {
   total,
   trackedMonths,
   updateNotice,
+  firstMonth,
 } from '@/lib/accounting';
 import {
   accountActivity,
@@ -94,7 +95,7 @@ export default function Dashboard({
   const uncategorized = tx.filter(
     (t) => t.category === 'Uncategorized' && t.type === 'purchase',
   );
-  const months = trackedMonths()
+  const months = trackedMonths(undefined, firstMonth(state))
     .slice(-6)
     .map((m) => ({
       month: m,
@@ -208,7 +209,7 @@ export default function Dashboard({
             </>
           ) : (
             <span>
-              {month === '2026-09'
+              {month === firstMonth(state)
                 ? 'Your first tracked month'
                 : 'Add confirmed coverage to compare'}
             </span>

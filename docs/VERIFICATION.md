@@ -3,7 +3,7 @@
 | Check                                                 | Result                    |
 | ----------------------------------------------------- | ------------------------- |
 | TypeScript                                            | Passed                    |
-| Unit/integration tests                                | 82 passed across 11 files |
+| Unit/integration tests                                | 83 passed across 11 files |
 | Desktop/phone production browser checks               | 62 passed                 |
 | Next.js production build                              | Passed                    |
 | Full dependency audit, including development tools    | 0 known vulnerabilities   |
@@ -18,7 +18,7 @@ Production browser checks run on a fresh local Next.js production build in deskt
 - The redesigned shell: the self-hosted font and bank logos loading with no other-origin resources, every section from the desktop top navigation and the phone tab bar/More sheet, no horizontal scrolling on any section, at least 44 × 44 px phone touch targets for navigation and page actions, bank filter chips and account shortcuts, merchant drilldowns, bounded month switching, readable validation errors, success messages, local Excel export, Escape-to-close dialogs, and the empty-vault getting-started checklist. The cash flow diagram balances (income in = categories + left over) and opens category details from a category node; dark mode follows the device setting, can be overridden from the top bar and Settings, resets on lock, and writes nothing to browser storage. The top bar hides while scrolling down and returns on scroll up; phone detail sheets reach the top of the screen and show their transactions; taps leave no focus ring while keyboard focus stays visible.
 
 - September dashboard, all banks, categories/merchant drilldowns, monthly comparisons, entry/deletion, CSV mapping/type correction/confirmation/undo, responsive layouts, and memory-only storage.
-- The actual isolated PDF.js worker for Amex, Capital One, BofA credit card, and BofA deposit statements; whole-statement totals including August, September cutoff, payment/income types, required review, and missing-row reconciliation blocking.
+- The actual isolated PDF.js worker for Amex, Capital One, BofA credit card, and BofA deposit statements; whole-statement totals with rows from both months a statement spans, payment/income types, required review, and missing-row reconciliation blocking.
 - Malformed, embedded-script, blank/image-only, and excessive-page PDFs; static error handling; no upload/outbound service request during extraction; merchant markup rendered as text. Unit tests additionally check oversized files, hard worker deadlines, and cancellation.
 - Production nonce CSP without unsafe-eval, frame denial, nosniff, no-referrer, no-store, the worker's network-blocking CSP, ten-minute inactivity locking, and locking on the first interaction after an expired background interval.
 

@@ -170,7 +170,7 @@ test('a purchase you entered is matched to its later statement line instead of c
     money(initial + 650),
   );
 });
-test('coverage dates come from the file, and a file from before tracking says so', async ({
+test('coverage dates come from the file, and older statements add their own months', async ({
   page,
 }) => {
   const upload = async (csv: string) => {
@@ -197,13 +197,13 @@ test('coverage dates come from the file, and a file from before tracking says so
   await upload(
     'Date,Description,Amount\n2026-05-28,Synthetic shop,5.00\n2026-06-20,Synthetic cafe,4.00',
   );
-  await expect(
-    page.getByText(
-      'Tracking starts September 1, 2026, so nothing from it is added.',
-    ),
-  ).toBeVisible();
-  await expect(page.getByLabel('Covered from')).toHaveCount(0);
-  await expect(
-    page.getByRole('button', { name: 'Confirm import' }),
-  ).toBeDisabled();
+  await expect(page.getByLabel('Covered from')).toHaveValue('2026-05-28');
+  await expect(page.getByLabel('Covered through')).toHaveValue('2026-06-20');
+  await page.getByRole('button', { name: 'Confirm import' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // May and June now appear as their own months.
+  await page.getByLabel('Selected month').selectOption('2026-05');
+  await expect(page.getByTestId('net-spending')).toHaveText('$5.00');
+  await page.getByLabel('Selected month').selectOption('2026-06');
+  await expect(page.getByTestId('net-spending')).toHaveText('$4.00');
 });

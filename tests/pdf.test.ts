@@ -33,7 +33,7 @@ function expected(statement: ReturnType<typeof fixture>) {
 }
 describe('local bank adapters and mandatory PDF reconciliation', () => {
   for (const account of ACCOUNTS)
-    it(`reconciles ${account}, retains August for totals, excludes it from tracking, and flags overlapping imports`, () => {
+    it(`reconciles ${account}, counts August rows in August, and flags overlapping imports`, () => {
       const s = fixture(account);
       expect(s.rows).toHaveLength(4);
       expect(
@@ -46,7 +46,7 @@ describe('local bank adapters and mandatory PDF reconciliation', () => {
         account,
         emptyState(),
       );
-      expect(review[0].error).toContain('Before September');
+      expect(review[0].transaction?.postedDate).toBe('2026-08-30');
       expect(review[2].transaction?.type).toBe('transfer');
       const saved = confirmImport(
         emptyState(),
@@ -55,12 +55,12 @@ describe('local bank adapters and mandatory PDF reconciliation', () => {
         undefined,
         prepared.proof,
       );
-      expect(saved.transactions).toHaveLength(3);
+      expect(saved.transactions).toHaveLength(4);
       expect(
         previewImport(prepared.sheet, prepared.map, account, saved).filter(
           (r) => r.decision === 'review',
         ),
-      ).toHaveLength(3);
+      ).toHaveLength(4);
       expect(s.warnings).not.toContain('layout-unvalidated');
     });
   it('supports a Bank of America deposit ledger with separately reconciled sections', () => {
@@ -430,6 +430,30 @@ describe('hard PDF worker cancellation and limits', () => {
     expect(s.rows.map((r) => [r.group, r.dateUncertain])).toEqual([
       ['payments', false],
       ['purchases', true],
+    ]);
+  });
+  it('posts credits dated before the statement period inside it, keeping the original date', () => {
+    const s = adaptPdf(
+      [
+        { page: 1, text: 'American Express' },
+        { page: 1, text: 'Closing Date 06/23/26' },
+        { page: 1, text: 'Payments and Credits' },
+        { page: 1, text: 'Detail *Indicates posting date' },
+        { page: 1, text: 'Credits Amount' },
+        { page: 1, text: '12/29/25 FRAUD CREDIT - SYNTHETIC DELIVERY -$20.00' },
+        { page: 1, text: '05/28/26 FRAUD CREDIT - SYNTHETIC DELIVERY -$9.00' },
+        { page: 2, text: 'Days in Billing Period: 30' },
+      ],
+      'Amex',
+      2,
+      'test',
+    );
+    expect(s.cycleFrom).toBe('2026-05-25');
+    expect(
+      s.rows.map((r) => [r.date, r.purchaseDate, r.dateUncertain]),
+    ).toEqual([
+      ['2026-05-25', '2025-12-29', true],
+      ['2026-05-28', undefined, true],
     ]);
   });
 });

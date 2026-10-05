@@ -52,12 +52,12 @@ describe('import and deduplication', () => {
       )[0].transaction?.type,
     ).toBe('purchase');
   });
-  it('rejects invalid dates, pre-September rows, pending rows, macros, and oversized files', () => {
+  it('rejects invalid dates, pre-2020 rows, pending rows, macros, and oversized files', () => {
     expect(() => parseDate('2026-02-30', 'iso')).toThrow();
     expect(parseDate('9/30/2026', 'mdy')).toBe('2026-09-30');
     const p = previewImport(
       sheet([
-        ['2026-08-31', 'Shop', '50'],
+        ['2019-12-31', 'Shop', '50'],
         ['2026-09-03', 'Shop', '50', 'Pending'],
         ['bad', 'Shop', '3'],
         ['2026-09-03', 'Shop', '1.234'],
@@ -341,7 +341,7 @@ describe('import and deduplication', () => {
         'Amex',
         emptyState(),
       );
-    it('uses the statement period, starting no earlier than tracking', () => {
+    it('uses the statement period, including days before September', () => {
       expect(
         suggestedCoverage(rows(['2026-09-03']), {
           from: '2026-08-25',
@@ -349,26 +349,27 @@ describe('import and deduplication', () => {
         }),
       ).toMatchObject({
         beforeTracking: false,
-        from: '2026-09-01',
+        from: '2026-08-25',
         through: '2026-09-23',
       });
     });
     it("falls back to the file's posted dates", () => {
       expect(
         suggestedCoverage(rows(['2026-09-12', '2026-09-03', '2026-08-30'])),
-      ).toMatchObject({ from: '2026-09-03', through: '2026-09-12' });
+      ).toMatchObject({ from: '2026-08-30', through: '2026-09-12' });
     });
-    it('says so when a whole statement is before tracking starts', () => {
+    it('older statements count in their own months', () => {
       expect(
         suggestedCoverage(rows(['2026-05-28', '2026-06-20']), {
           from: '2026-05-25',
           through: '2026-06-23',
         }),
       ).toMatchObject({
-        beforeTracking: true,
-        period: { from: '2026-05-25', through: '2026-06-23' },
+        beforeTracking: false,
+        from: '2026-05-25',
+        through: '2026-06-23',
       });
-      expect(suggestedCoverage(rows(['2026-06-01'])).beforeTracking).toBe(true);
+      expect(suggestedCoverage(rows(['2019-06-01'])).beforeTracking).toBe(true);
     });
   });
 });

@@ -17,6 +17,7 @@ import {
   previousMonth,
   todayNY,
   total,
+  firstMonth,
 } from './accounting';
 export type DailyPoint = { day: number; current?: number; previous?: number };
 // Running net spending by posted day for a month and, when tracked, the month before it.
@@ -28,7 +29,7 @@ export function cumulativeSeries(
   const days = monthDays(month),
     end = month === today.slice(0, 7) ? +today.slice(8) : days,
     prior = previousMonth(month),
-    hasPrior = prior >= START.slice(0, 7),
+    hasPrior = prior >= firstMonth(s),
     priorDays = monthDays(prior);
   const byDay = (list: Transaction[]) => {
     const sums = new Map<number, number>();

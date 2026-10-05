@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import { ZodError } from 'zod';
 import { Trash2 } from 'lucide-react';
 import {
+  EARLIEST,
   ACCOUNTS,
   TYPES,
   uid,
@@ -173,7 +174,7 @@ export default function ExpenseDialog({
             Posted date
             <input
               type="date"
-              min="2026-09-01"
+              min={EARLIEST}
               required
               value={t.postedDate}
               onChange={(e) => update('postedDate', e.target.value)}

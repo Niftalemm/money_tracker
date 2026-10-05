@@ -33,7 +33,12 @@ import ExpenseDialog from './ExpenseDialog';
 import Modal from './Modal';
 import { Notice, Spinner } from './ui';
 import { changer } from './change';
-import { accountCoverage, monthLabel, trackedMonths } from '@/lib/accounting';
+import {
+  accountCoverage,
+  monthLabel,
+  trackedMonths,
+  firstMonth,
+} from '@/lib/accounting';
 import { exportExcel } from '@/lib/exports';
 import { ACCOUNTS, type Transaction } from '@/lib/model';
 type Context = Parameters<Parameters<typeof AuthGate>[0]['children']>[0];
@@ -120,7 +125,7 @@ function Workspace(ctx: Context) {
       window.removeEventListener('scroll', onScroll);
     };
   }, []);
-  const months = trackedMonths(),
+  const months = trackedMonths(undefined, firstMonth(state)),
     index = months.indexOf(month);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
@@ -354,7 +359,10 @@ function Workspace(ctx: Context) {
                 ? 'Demo data stays on this page'
                 : 'Encrypted on this device before cloud storage'}
             </span>
-            <span>USD · New York time · Tracking from September 2026</span>
+            <span>
+              USD · New York time · Tracking from{' '}
+              {monthLabel(firstMonth(state))}
+            </span>
           </footer>
         </main>
       </div>
@@ -468,6 +476,7 @@ function Workspace(ctx: Context) {
       {exporting && (
         <ExportDialog
           month={month}
+          since={firstMonth(state)}
           onClose={() => setExporting(false)}
           onExport={async (all) => {
             await exportExcel(state, all ? undefined : month);
@@ -501,10 +510,12 @@ function Workspace(ctx: Context) {
 }
 function ExportDialog({
   month,
+  since,
   onClose,
   onExport,
 }: {
   month: string;
+  since: string;
   onClose: () => void;
   onExport: (all: boolean) => Promise<void>;
 }) {
@@ -545,7 +556,9 @@ function ExportDialog({
           />
           <span>
             All months
-            <span className="choice-hint">Everything since September 2026</span>
+            <span className="choice-hint">
+              Everything since {monthLabel(since)}
+            </span>
           </span>
         </label>
       </fieldset>

@@ -1,6 +1,6 @@
 # Money Tracker
 
-A lightweight, private expense tracker: **Dashboard, Transactions, Cash flow, Accounts, Recurring, Settings**. One Next.js/TypeScript application, Supabase Auth/Postgres, and Vercel. USD, New York time, tracking from **September 1, 2026**. No bank connections, financial AI, or notification infrastructure.
+A lightweight, private expense tracker: **Dashboard, Transactions, Cash flow, Accounts, Recurring, Settings**. One Next.js/TypeScript application, Supabase Auth/Postgres, and Vercel. USD, New York time, with totals by **calendar month** (by posted date). Months start at September 2026, or earlier when you upload older statements. No bank connections, financial AI, or notification infrastructure.
 
 ## Try fake data first
 
@@ -63,7 +63,7 @@ The Supabase SQL Editor and dashboard are administrator tools and can see your a
 
 The app needs no Vercel Cron, server functions for financial data, SMTP integration, blob storage, analytics, or external bank APIs. Financial files and records are processed in the browser; Vercel serves the application and Supabase stores ciphertext. The server-rendered app never receives an unlocked transaction list.
 
-## Imports and September coverage
+## Imports and monthly coverage
 
 **PDF is the primary import option for Amex, Capital One, and Bank of America.** Choose the account, then its statement PDF. PDF.js 6 (its legacy build, which adds fallbacks so recent phone and desktop browsers that lack the newest JavaScript built-ins still work) performs text extraction in an isolated browser worker on your device. The original PDF is never uploaded, rendered as HTML, or sent to AI. Embedded scripting is rejected; no PDF viewer, scripting manager, links, external resources, or OCR run. The worker has a separate network-blocking CSP and is terminated on timeout, cancellation, close, or lock.
 
@@ -79,7 +79,7 @@ Review rows and correct types/categories before confirming. Negative/credit amou
 
 Stable bank IDs link existing entries and keep category edits. Without IDs, potential overlaps match account, posted date, normalized description, and amount, with occurrence counts to preserve repeated identical purchases. **Purchases you entered yourself** are matched more loosely, because the bank posts later and words them differently: same card and exact amount, a statement date from 1 day before to 5 days after your entry (or the statement's purchase date equal to it), and a similar description ("Starbucks" ≈ "STARBUCKS STORE 12345 NEW YORK NY"); a different description still prompts when the dates are within 2 days. Each entry pairs with at most one statement line, so several same-day purchases at one place pair one to one and extras stay separate. Choosing **Same transaction** keeps your entry's name, date, category, and notes. Every uncertain match requires a choice: separate purchase, same transaction, or skip. Manual matches always require review. Undo removes only records unique to the chosen batch and its coverage; earlier/shared/manual records survive.
 
-A statement labeled September does **not** prove September 1–30 coverage. Collect adjacent statements or a posted-date export covering all September days. Confirm date ranges per account only after verifying completeness, including days without purchases. Optional weekly Amex imports do not advance the other banks' coverage. See [the statement layout notes](docs/STATEMENT_LAYOUTS.md).
+Every uploaded transaction counts in the calendar month it posted, including older statements (they add their own months). Card statements run between closing dates, not calendar months: an Amex cycle such as Jul 25 – Aug 24 adds to both July and August. A month is fully covered once consecutive statements together cover every day, for example Jul 25 – Aug 24 plus Aug 25 – Sep 23 for August. The coverage step fills in each statement's own period. A statement labeled September does **not** by itself prove September 1–30 coverage. Confirm date ranges per account only after verifying completeness, including days without purchases. Optional weekly Amex imports do not advance the other banks' coverage. See [the statement layout notes](docs/STATEMENT_LAYOUTS.md).
 
 ## Counting, estimates, and bills
 

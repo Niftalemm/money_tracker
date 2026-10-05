@@ -9,6 +9,7 @@ import {
   monthTransactions,
   total,
   trackedMonths,
+  firstMonth,
 } from '@/lib/accounting';
 import { cashFlow, categoryShares, monthShort } from '@/lib/insights';
 import type { TrackerState, Transaction } from '@/lib/model';
@@ -34,7 +35,7 @@ export default function CashFlow({
     largest = Math.max(1, ...categories.map((c) => c.cents));
   const merchants = groups(tx, 'merchant').slice(0, 8),
     topMerchant = Math.max(1, ...merchants.map((m) => m.cents));
-  const months = trackedMonths()
+  const months = trackedMonths(undefined, firstMonth(state))
     .slice(-12)
     .map((m) => {
       const f = cashFlow(state, m);

@@ -76,8 +76,8 @@ export default function PdfReview({
           {rows.length} extracted rows ·{' '}
           {statement.cycleFrom ?? 'Start date needs review'} through{' '}
           {statement.cycleThrough ?? 'end date needs review'}. Reconcile the
-          entire statement here, including August rows. Tracking begins
-          September 1, 2026 at the next step.
+          entire statement here. Each transaction then counts in the calendar
+          month it posted, so a statement that spans two months adds to both.
         </p>
         <div className="review-stats">
           <Pill tone={matched === totals.length ? 'good' : 'warn'}>

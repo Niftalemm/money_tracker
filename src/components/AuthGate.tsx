@@ -587,7 +587,7 @@ export default function AuthGate({
           )}
         </div>
         <p className="welcome-footer">
-          USD · America/New_York · Tracking from September 2026
+          USD · America/New_York · Monthly totals by posted date
         </p>
       </section>
     </main>

@@ -1,7 +1,13 @@
 'use client';
 import { useState } from 'react';
 import { CalendarCheck, Trash2 } from 'lucide-react';
-import { ACCOUNTS, uid, type Account, type TrackerState } from '@/lib/model';
+import {
+  EARLIEST,
+  ACCOUNTS,
+  uid,
+  type Account,
+  type TrackerState,
+} from '@/lib/model';
 import {
   accountCoverage,
   monthLabel,
@@ -115,7 +121,7 @@ export default function Accounts({
                 From
                 <input
                   type="date"
-                  min="2026-09-01"
+                  min={EARLIEST}
                   required
                   value={from}
                   onChange={(e) => setFrom(e.target.value)}

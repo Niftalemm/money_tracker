@@ -26,9 +26,9 @@ All three files were plain text PDFs with no JavaScript, forms, automatic action
 - "Withdrawals and other subtractions" contains two separately totaled subsections. They reconcile as **ATM and debit card** and **Withdrawals / subtractions** rather than one combined total.
 - A checks section is required only when the statement has one. Marketing text that mentions "checks" is not a section header.
 
-## Statement periods and September tracking
+## Statement periods and calendar months
 
-Each billing cycle starts in August, so rows dated before September 1 are reconciled with the statement but excluded from tracking. A statement that ends before September 30 does not cover all of September; mark coverage only through its end date and add the next statement.
+Billing cycles cross calendar months. Every row counts in the month it posted, so one statement adds to two months. Coverage is confirmed per statement period and combined per day: a month is complete when consecutive statements cover all of its days (for Amex, the cycle ending on the 23rd or 24th plus the next one).
 
 ## Extraction fields
 
@@ -53,4 +53,4 @@ Category → merchant → exact purchase/credit is the dashboard drilldown. Each
 
 Choose the account and upload the text PDF locally. The parser groups Payments and Credits, New Charges, Fees, and Interest into separate review sections. Review the entire statement, correct missed rows and dates, classify card payments as transfers, and reconcile every section before the final category/duplicate preview. A discrepancy blocks saving; do not change a total merely to make extraction balance.
 
-Only verified dates from September 1 onward enter tracking after reconciliation. Statement line positions are not bank IDs. Overlap matches require explicit review. Original statements are ignored by Git and must remain outside the repository. Scanned, scripted, malformed, excessive-size/page, and password-protected PDFs are rejected.
+Rows enter tracking after reconciliation, in their posted month. Statement line positions are not bank IDs. Overlap matches require explicit review. Original statements are ignored by Git and must remain outside the repository. Scanned, scripted, malformed, excessive-size/page, and password-protected PDFs are rejected.

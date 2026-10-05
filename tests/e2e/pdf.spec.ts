@@ -50,9 +50,9 @@ for (const account of ACCOUNTS)
     await expect(
       page.getByText('PDF statement totals reconciled.', { exact: false }),
     ).toBeVisible();
-    await expect(
-      page.getByText('Before September 1, 2026; excluded from tracking.'),
-    ).toBeVisible();
+    // The August row counts in August, the rest in September.
+    await expect(page.getByText('excluded from tracking')).toHaveCount(0);
+    await expect(page.getByText('2026-08-30', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Confirm import' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(outward).toEqual([]);
@@ -144,13 +144,11 @@ test('Bank of America deposit PDF reconciles additions, withdrawals, checks, and
   await page
     .getByRole('combobox', { name: 'Account', exact: true })
     .selectOption('Bank of America');
-  await page
-    .getByLabel('Transaction file')
-    .setInputFiles({
-      name: 'synthetic-bofa-deposit.pdf',
-      mimeType: 'application/pdf',
-      buffer: await syntheticPdf('Bank of America', { deposit: true }),
-    });
+  await page.getByLabel('Transaction file').setInputFiles({
+    name: 'synthetic-bofa-deposit.pdf',
+    mimeType: 'application/pdf',
+    buffer: await syntheticPdf('Bank of America', { deposit: true }),
+  });
   await expect(
     page.getByRole('heading', { name: 'Review PDF extraction and reconcile' }),
   ).toBeVisible();
