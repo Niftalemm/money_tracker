@@ -129,3 +129,44 @@ test('ten minutes of inactivity clears the unlocked workspace', async ({
   ).toBeVisible();
   await expect(page.getByTestId('net-spending')).toHaveCount(0);
 });
+test('a purchase you entered is matched to its later statement line instead of counting twice', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Add expense' }).click();
+  await page.getByLabel('Merchant or description').fill('Starbucks');
+  await page.getByLabel('Amount (USD, positive)', { exact: true }).fill('6.50');
+  await page.getByLabel('Posted date', { exact: true }).fill('2026-09-05');
+  await page.getByRole('button', { name: 'Save transaction' }).click();
+  await expect(page.getByTestId('net-spending')).toHaveText(
+    money(initial + 650),
+  );
+  await page.getByRole('button', { name: 'Upload transactions' }).click();
+  await page
+    .getByRole('combobox', { name: 'Account', exact: true })
+    .selectOption('Amex');
+  await page.getByLabel('Transaction file').setInputFiles({
+    name: 'synthetic.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(
+      'Date,Description,Amount\n2026-09-07,STARBUCKS STORE 12345 NEW YORK NY,6.50',
+    ),
+  });
+  await page.getByLabel('Posted date', { exact: true }).selectOption('Date');
+  await page
+    .getByLabel('Description / merchant', { exact: true })
+    .selectOption('Description');
+  await page.getByLabel('Amount', { exact: true }).selectOption('Amount');
+  await page.getByLabel('I checked my export').check();
+  await page.getByRole('button', { name: 'Review 1 row' }).click();
+  await expect(
+    page.getByText('Looks like your entry "Starbucks" on Sat, Sep 5'),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Confirm import' }),
+  ).toBeDisabled();
+  await page.getByLabel('Action row 2').selectOption('link');
+  await page.getByRole('button', { name: 'Confirm import' }).click();
+  await expect(page.getByTestId('net-spending')).toHaveText(
+    money(initial + 650),
+  );
+});

@@ -23,6 +23,7 @@ import {
   type Sheet,
 } from '@/lib/imports';
 import { money } from '@/lib/accounting';
+import { shortDate } from '@/lib/insights';
 import { AccountBadge, Notice, Pill, Spinner } from './ui';
 import { readableError } from './ExpenseDialog';
 const STEPS = ['Choose file', 'Review & reconcile', 'Duplicates & categories'];
@@ -116,6 +117,13 @@ export default function ImportDialog({
   }
   function editRow(index: number, changes: Partial<PreviewRow>) {
     setRows(rows!.map((r, i) => (i === index ? { ...r, ...changes } : r)));
+  }
+  // Names the entry you typed, so you can tell whether it is the same purchase.
+  function manualNote(id?: string) {
+    const entry = state.transactions.find((t) => t.id === id);
+    return entry
+      ? `Looks like your entry "${entry.merchant}" on ${shortDate(entry.postedDate)}. Choose "Same transaction" to keep your entry, or add this as a separate purchase.`
+      : 'Possible match to manual entry. Confirm explicitly.';
   }
   const valid = rows?.filter((r) => r.transaction) ?? [],
     uncertain = rows?.filter((r) => r.decision === 'review').length ?? 0;
@@ -450,7 +458,7 @@ export default function ImportDialog({
                               {r.matchKind === 'stable'
                                 ? 'Same bank ID: keeps your edits.'
                                 : r.matchKind === 'manual'
-                                  ? 'Possible match to manual entry. Confirm explicitly.'
+                                  ? manualNote(r.matchId)
                                   : 'Possible overlapping purchase. Repeated purchases are preserved unless you link or skip.'}
                             </span>
                           )}
