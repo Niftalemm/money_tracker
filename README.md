@@ -1,6 +1,6 @@
 # Money Tracker
 
-A lightweight, private expense tracker: **Dashboard, Transactions, Settings**. One Next.js/TypeScript application, Supabase Auth/Postgres, and Vercel. USD, New York time, tracking from **September 1, 2026**. No bank connections, financial AI, or notification infrastructure.
+A lightweight, private expense tracker: **Dashboard, Transactions, Cash flow, Accounts, Recurring, Settings**. One Next.js/TypeScript application, Supabase Auth/Postgres, and Vercel. USD, New York time, tracking from **September 1, 2026**. No bank connections, financial AI, or notification infrastructure.
 
 ## Try fake data first
 
@@ -11,7 +11,15 @@ npm run dev
 
 Open http://localhost:3000 and choose **Try with fake data**. No credentials or services are needed. The demo has September and October 2026 entries across **Amex, Bank of America, and Capital One**, repeated purchases, a refund, a card payment, a shared reimbursement, bill links, and coverage. Changes remain in memory and disappear when you leave or lock. Demo records never enter a cloud vault. Run `npm run fake:pdf` to generate four synthetic statement PDFs in the Git-ignored `private-data/fake-statements/` directory (all three credit cards plus a BofA deposit account). Upload these in the demo and check section totals before confirming. Browser tests also generate PDFs in memory. For optional CSV practice, use the three explicitly synthetic CSVs in `tests/fixtures/` (these are normalized examples, not validated bank export layouts). Amex and Capital One use positive-purchase amounts; Bank of America uses separate debit/credit columns. In review, change the synthetic card payment to transfer and synthetic salary to income before confirming.
 
-The dashboard opens in September. Select October for equal-day comparisons and a clearly labeled early estimate. Select a category, then a merchant, for exact transactions. Use **Transactions** for filtering and corrections. **Settings** contains coverage, merchant rules, scheduled bills, import undo, and encrypted backups.
+The dashboard opens in September. Use the month switcher (‹ ›) to select October for equal-day comparisons, a running spending chart against September, and a clearly labeled early estimate. Select a category, then a merchant, for exact transactions.
+
+- **Transactions** groups entries by day, with search, category/type filters, and one-tap bank chips. Select any row to edit or delete it.
+- **Cash flow** compares recorded income with net spending by month, with full category and top-merchant breakdowns.
+- **Accounts** shows each bank's spending, confirmed coverage, statement-availability day, update notices, and confirmed ranges.
+- **Recurring** lists scheduled bills as _not yet recorded_ or _payment linked_ for the selected month.
+- **Settings** contains categories, merchant rules, import history/undo, and encrypted backups.
+
+On a computer, every section is in the left sidebar. On a phone, a bottom tab bar holds Dashboard, Transactions, a central **Add** button, Cash flow, and **More** (Accounts, Recurring, Settings); the lock button stays in the top bar. A new, empty vault shows a short getting-started checklist.
 
 ## Supabase setup — about 10 minutes
 
@@ -55,7 +63,7 @@ The app needs no Vercel Cron, server functions for financial data, SMTP integrat
 
 ## Imports and September coverage
 
-**PDF is the primary import option for Amex, Capital One, and Bank of America.** Choose the account, then its statement PDF. PDF.js 6 performs text extraction in an isolated browser worker on your device. The original PDF is never uploaded, rendered as HTML, or sent to AI. Embedded scripting is rejected; no PDF viewer, scripting manager, links, external resources, or OCR run. The worker has a separate network-blocking CSP and is terminated on timeout, cancellation, close, or lock.
+**PDF is the primary import option for Amex, Capital One, and Bank of America.** Choose the account, then its statement PDF. PDF.js 6 (its legacy build, which adds fallbacks so recent phone and desktop browsers that lack the newest JavaScript built-ins still work) performs text extraction in an isolated browser worker on your device. The original PDF is never uploaded, rendered as HTML, or sent to AI. Embedded scripting is rejected; no PDF viewer, scripting manager, links, external resources, or OCR run. The worker has a separate network-blocking CSP and is terminated on timeout, cancellation, close, or lock.
 
 Limits: **10 MB, 40 pages, 20 seconds, 2 million text characters, 100,000 text items, 25,000 lines, and 2,500 transaction rows**. Malformed, password-protected, and image-only statements are rejected. Use a smaller plain-text statement, manual entry, or a bank export when needed.
 
@@ -101,7 +109,7 @@ npx playwright install chromium
 E2E_PRODUCTION=1 npm run test:e2e
 ```
 
-Unit/integration tests cover cents, card payment exclusion, refunds/reimbursements, equal-day comparisons, coverage/estimates, imports/overlap/undo/manual matches, encryption/recovery/tampering, and Excel agreement. Access tests execute both actual migrations in local PostgreSQL via PGlite using Supabase-compatible JWT helpers: anonymous, second-user, owner without MFA, owner with MFA, write grants, and version conflicts. Browser tests exercise desktop and phone layouts, import corrections/confirmation/undo, category drilldowns, and manual edits/deletion with synthetic records. Local production headers and worker behavior are tested. Actual Supabase MFA/policies, Vercel headers, encrypted storage/recovery, and two real devices remain pending until deployment. See [the security review](docs/SECURITY_REVIEW.md) and [verification record](docs/VERIFICATION.md).
+Unit/integration tests cover cents, card payment exclusion, refunds/reimbursements, equal-day comparisons, coverage/estimates, imports/overlap/undo/manual matches, encryption/recovery/tampering, and Excel agreement. Access tests execute both actual migrations in local PostgreSQL via PGlite using Supabase-compatible JWT helpers: anonymous, second-user, owner without MFA, owner with MFA, write grants, and version conflicts. Browser tests exercise desktop and phone layouts, every navigation section without horizontal scrolling, 44-pixel phone touch targets, bank filters, import corrections/confirmation/undo, category and merchant drilldowns, manual edits/deletion, readable validation errors, success messages, local Excel export, and the empty-vault checklist with synthetic records. Local production headers and worker behavior are tested. Actual Supabase MFA/policies, Vercel headers, encrypted storage/recovery, and two real devices remain pending until deployment. See [the security review](docs/SECURITY_REVIEW.md) and [verification record](docs/VERIFICATION.md).
 
 ## Inputs and release gates
 
