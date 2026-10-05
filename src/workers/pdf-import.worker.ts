@@ -1,6 +1,6 @@
 // Core text extraction only; no viewer, scripting manager, rendering, or remote resources.
-import { WorkerMessageHandler } from 'pdfjs-dist/build/pdf.worker.mjs';
-import { getDocument, version } from 'pdfjs-dist';
+import { WorkerMessageHandler } from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
+import { getDocument, version } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { adaptPdf, linesFromItems } from '../lib/pdf-adapters';
 import { PDF_LIMITS } from '../lib/pdf-types';
 import { ACCOUNTS } from '../lib/model';
